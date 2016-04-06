@@ -19,6 +19,13 @@ export class InformationView extends splitview.CollapsibleView {
 	private bodyContainer: HTMLElement;
 	private toDispose: lifecycle.IDisposable[];
 
+	// the view's model:
+	private debugState: debug.State;
+	private stackFrame: debug.IStackFrame;
+	private currentFile: string;
+	private currentLine: number;
+
+
 	constructor(actionRunner: actions.IActionRunner, private settings: any,
 		@ITelemetryService private telemetryService: ITelemetryService,
 		@debug.IDebugService private debugService: debug.IDebugService
@@ -29,6 +36,14 @@ export class InformationView extends splitview.CollapsibleView {
 			ariaHeaderLabel: nls.localize('information', "Information")
 		});
 		this.toDispose = [];
+
+		// the following 'wireing' should probably go into a separate lifcycle hook.
+		this.debugState = this.debugService.getState();
+
+		const viewModel = this.debugService.getViewModel();
+		this.toDispose.push(viewModel.addListener2(debug.ViewModelEvents.FOCUSED_STACK_FRAME_UPDATED, () => this.onFocusedStackFrameUpdated()));
+
+		this.toDispose.push(this.debugService.addListener2(debug.ServiceEvents.STATE_CHANGED, () => this.onDebugStateChange()));
 	}
 
 	public renderHeader(container: HTMLElement): void {
@@ -40,13 +55,45 @@ export class InformationView extends splitview.CollapsibleView {
 	public renderBody(container: HTMLElement): void {
 		dom.addClass(container, 'mock-information');
 		this.bodyContainer = container;
-		const viewModel = this.debugService.getViewModel();
-		this.toDispose.push(viewModel.addListener2(debug.ViewModelEvents.FOCUSED_STACK_FRAME_UPDATED, () => this.onFocusedStackFrameUpdated()));
+		this.renderContent();
 	}
 
 	private onFocusedStackFrameUpdated(): void {
-		const stackFrame = this.debugService.getViewModel().getFocusedStackFrame();
-		this.bodyContainer.textContent = stackFrame ? stackFrame.name : '';
+		this.stackFrame = this.debugService.getViewModel().getFocusedStackFrame();
+		this.renderContent();
+	}
+
+	private onDebugStateChange(): void {
+
+		this.debugState = this.debugService.getState();
+		if (this.debugState === debug.State.Stopped) {
+			let session = this.debugService.getActiveSession();
+			if (session) {
+				this.stackFrame = this.debugService.getViewModel().getFocusedStackFrame();
+				session.custom('infoRequest', {}).then(response => {
+					this.currentFile = response.body.currentFile;
+					this.currentLine = response.body.currentLine;
+					this.renderContent();
+				});
+			}
+		} else {
+			this.stackFrame = undefined;
+			this.currentFile = undefined;
+			this.currentLine = undefined;
+			this.renderContent();
+		}
+	}
+
+	private renderContent(): void {
+
+		let content = `state: ${debug.State[this.debugState]}`;
+		if (this.stackFrame) {
+			content += `<br>frame: ${this.stackFrame.name}`;
+		}
+		if (this.currentFile) {
+			content += `<br>file: ${this.currentFile}<br>line: ${this.currentLine}`;
+		}
+		this.bodyContainer.innerHTML = content;
 	}
 
 	public shutdown(): void {
