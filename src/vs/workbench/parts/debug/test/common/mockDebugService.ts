@@ -190,4 +190,8 @@ class MockRawSession extends ee.EventEmitter implements debug.IRawDebugSession {
 	evaluate(args: DebugProtocol.EvaluateArguments): TPromise<DebugProtocol.EvaluateResponse> {
 		return TPromise.as(null);
 	}
+
+	custom(request: string, args: any) : TPromise<DebugProtocol.Response> {
+		return TPromise.as(null);
+	}
 }

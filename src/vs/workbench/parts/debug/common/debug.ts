@@ -263,6 +263,8 @@ export interface IRawDebugSession extends ee.EventEmitter {
 	scopes(args: DebugProtocol.ScopesArguments): TPromise<DebugProtocol.ScopesResponse>;
 	variables(args: DebugProtocol.VariablesArguments): TPromise<DebugProtocol.VariablesResponse>;
 	evaluate(args: DebugProtocol.EvaluateArguments): TPromise<DebugProtocol.EvaluateResponse>;
+
+	custom(request: string, args: any): TPromise<DebugProtocol.Response>;
 }
 
 export var IDebugService = createDecorator<IDebugService>(DEBUG_SERVICE_ID);
