@@ -18,12 +18,15 @@ export class InformationView extends splitview.CollapsibleView {
 	private static MEMENTO = 'informationview.memento';
 	private bodyContainer: HTMLElement;
 	private toDispose: lifecycle.IDisposable[];
+	private customEventListener: lifecycle.IDisposable;
 
 	// the view's model:
+	private debugSession: debug.IRawDebugSession;
 	private debugState: debug.State;
 	private stackFrame: debug.IStackFrame;
 	private currentFile: string;
 	private currentLine: number;
+	private hoverExpression: number;
 
 
 	constructor(actionRunner: actions.IActionRunner, private settings: any,
@@ -58,6 +61,9 @@ export class InformationView extends splitview.CollapsibleView {
 		this.renderContent();
 	}
 
+	/**
+	 * remember the selected stackframe's name in the view model
+	 */
 	private onFocusedStackFrameUpdated(): void {
 		this.stackFrame = this.debugService.getViewModel().getFocusedStackFrame();
 		this.renderContent();
@@ -65,9 +71,18 @@ export class InformationView extends splitview.CollapsibleView {
 
 	private onDebugStateChange(): void {
 
+		const session = this.debugService.getActiveSession();
 		this.debugState = this.debugService.getState();
 		if (this.debugState === debug.State.Stopped) {
-			let session = this.debugService.getActiveSession();
+
+			// we need an easier way to track lifetime of a session
+			if (!this.debugSession && session) {
+				// new session
+				this.debugSession = session;
+				// listen for our custom event
+				this.customEventListener = session.addListener2('custom', (event: DebugProtocol.Event) => this.onCustomEvent(event) );
+			}
+
 			if (session) {
 				this.stackFrame = this.debugService.getViewModel().getFocusedStackFrame();
 				session.custom('infoRequest', {}).then(response => {
@@ -77,11 +92,30 @@ export class InformationView extends splitview.CollapsibleView {
 				});
 			}
 		} else {
+
+			// we need an easier way to track lifetime of a session
+			if (this.debugSession && !session) {
+				// session gone
+				this.debugSession = undefined;
+				// deregister for our custom event
+				this.customEventListener.dispose();
+			}
+
 			this.stackFrame = undefined;
 			this.currentFile = undefined;
 			this.currentLine = undefined;
+			this.hoverExpression = undefined;
 			this.renderContent();
 		}
+	}
+
+	/**
+	 * Custom event contains word under hover.
+	 * Remember that.
+	 */
+	private onCustomEvent(event: DebugProtocol.Event): void {
+		this.hoverExpression = event.body.hoverExpression;
+		this.renderContent();
 	}
 
 	private renderContent(): void {
@@ -92,6 +126,9 @@ export class InformationView extends splitview.CollapsibleView {
 		}
 		if (this.currentFile) {
 			content += `<br>file: ${this.currentFile}<br>line: ${this.currentLine}`;
+		}
+		if (this.hoverExpression) {
+			content += `<br>hover: ${this.hoverExpression}`;
 		}
 		this.bodyContainer.innerHTML = content;
 	}
