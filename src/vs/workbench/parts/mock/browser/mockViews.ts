@@ -26,7 +26,7 @@ export class InformationView extends splitview.CollapsibleView {
 	private stackFrame: debug.IStackFrame;
 	private currentFile: string;
 	private currentLine: number;
-	private hoverExpression: number;
+	private sessionDuration: number;
 
 
 	constructor(actionRunner: actions.IActionRunner, private settings: any,
@@ -79,8 +79,9 @@ export class InformationView extends splitview.CollapsibleView {
 			if (!this.debugSession && session) {
 				// new session
 				this.debugSession = session;
+				this.sessionDuration = 0;
 				// listen for our custom event
-				this.customEventListener = session.addListener2('custom', (event: DebugProtocol.Event) => this.onCustomEvent(event) );
+				this.customEventListener = session.addListener2('heartbeatEvent', (event: DebugProtocol.Event) => this.onCustomEvent(event) );
 			}
 
 			if (session) {
@@ -104,17 +105,16 @@ export class InformationView extends splitview.CollapsibleView {
 			this.stackFrame = undefined;
 			this.currentFile = undefined;
 			this.currentLine = undefined;
-			this.hoverExpression = undefined;
+			this.sessionDuration = undefined;
 			this.renderContent();
 		}
 	}
 
 	/**
-	 * Custom event contains word under hover.
-	 * Remember that.
+	 * Custom 'heartbeat' event is used to update a duration counter.
 	 */
 	private onCustomEvent(event: DebugProtocol.Event): void {
-		this.hoverExpression = event.body.hoverExpression;
+		this.sessionDuration++;
 		this.renderContent();
 	}
 
@@ -127,8 +127,8 @@ export class InformationView extends splitview.CollapsibleView {
 		if (this.currentFile) {
 			content += `<br>file: ${this.currentFile}<br>line: ${this.currentLine}`;
 		}
-		if (this.hoverExpression) {
-			content += `<br>hover: ${this.hoverExpression}`;
+		if (this.sessionDuration) {
+			content += `<br>duration: ${this.sessionDuration}`;
 		}
 		this.bodyContainer.innerHTML = content;
 	}
