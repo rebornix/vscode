@@ -4,6 +4,11 @@
  *--------------------------------------------------------------------------------------------*/
 
 .debug-viewlet .mock-information {
+	color: black;
+	text-align: center;
+}
+
+.vs-dark .debug-viewlet .mock-information {
 	color: azure;
 	text-align: center;
 }
