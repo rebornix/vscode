@@ -2017,6 +2017,12 @@ declare namespace vscode {
 	 * A completion item represents a text snippet that is
 	 * proposed to complete text that is being typed.
 	 *
+	 * It is suffient to create a completion item from just
+	 * a [label](#CompletionItem.label). In that case the completion
+	 * item will replace the [word](#TextDocument.getWordRangeAtPosition)
+	 * until the cursor with the given label.
+	 *
+	 *
 	 * @see [CompletionItemProvider.provideCompletionItems](#CompletionItemProvider.provideCompletionItems)
 	 * @see [CompletionItemProvider.resolveCompletionItem](#CompletionItemProvider.resolveCompletionItem)
 	 */
@@ -2496,6 +2502,32 @@ declare namespace vscode {
 		clear(): void;
 
 		/**
+		 * Iterate over each entry in this collection.
+		 *
+		 * @param callback Function to execute for each entry.
+		 * @param thisArg The `this` context used when invoking the handler function.
+		 */
+		forEach(callback: (uri: Uri, diagnostics: Diagnostic[], collection: DiagnosticCollection) => any, thisArg?: any): void;
+
+		/**
+		 * Get the diagnostics for a given resource. *Note* that you cannot
+		 * modify the diagnostics-array returned from this call.
+		 *
+		 * @param uri A resource identifier.
+		 * @returns An immutable array of [diagnostics](#Diagnostic) or `undefined`.
+		 */
+		get(uri: Uri): Diagnostic[];
+
+		/**
+		 * Check if this collection contains diagnostics for a
+		 * given resource.
+		 *
+		 * @param uri A resource identifier.
+		 * @returns `true` if this collection has diagnostic for the given resource.
+		 */
+		has(uri: Uri): boolean;
+
+		/**
 		 * Dispose and free associated resources. Calls
 		 * [clear](#DiagnosticCollection.clear).
 		 */
@@ -2865,7 +2897,7 @@ declare namespace vscode {
 		 * @param thisArg The `this` context used when invoking the handler function.
 		 * @return Disposable which unregisters this command on disposal.
 		 */
-		export function registerTextEditorCommand(command: string, callback: (textEditor: TextEditor, edit: TextEditorEdit) => void, thisArg?: any): Disposable;
+		export function registerTextEditorCommand(command: string, callback: (textEditor: TextEditor, edit: TextEditorEdit, ...args: any[]) => void, thisArg?: any): Disposable;
 
 		/**
 		 * Executes the command denoted by the given command identifier.
@@ -2901,7 +2933,7 @@ declare namespace vscode {
 	export namespace window {
 
 		/**
-		 * The currently active editor or undefined. The active editor is the one
+		 * The currently active editor or `undefined`. The active editor is the one
 		 * that currently has focus or, when none has focus, the one that has changed
 		 * input most recently.
 		 */
@@ -2914,7 +2946,8 @@ declare namespace vscode {
 
 		/**
 		 * An [event](#Event) which fires when the [active editor](#window.activeTextEditor)
-		 * has changed.
+		 * has changed. *Note* that the event also fires when the active editor changes
+		 * to `undefined`.
 		 */
 		export const onDidChangeActiveTextEditor: Event<TextEditor>;
 

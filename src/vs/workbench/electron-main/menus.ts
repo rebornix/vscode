@@ -306,7 +306,7 @@ export class VSCodeMenu {
 			newFile = this.createMenuItem(nls.localize({ key: 'miNewFile', comment: ['&& denotes a mnemonic'] }, "&&New File"), 'workbench.action.files.newUntitledFile');
 		}
 
-		let open = new MenuItem({ label: mnemonicLabel(nls.localize({ key: 'miOpen', comment: ['&& denotes a mnemonic'] }, "&&Open...")), accelerator: this.getAccelerator('workbench.action.files.openFileFolder'), click: () => windows.manager.openFolderPicker() });
+		let open = new MenuItem({ label: mnemonicLabel(nls.localize({ key: 'miOpen', comment: ['&& denotes a mnemonic'] }, "&&Open...")), accelerator: this.getAccelerator('workbench.action.files.openFileFolder'), click: () => windows.manager.openFileFolderPicker() });
 		let openFile = new MenuItem({ label: mnemonicLabel(nls.localize({ key: 'miOpenFile', comment: ['&& denotes a mnemonic'] }, "&&Open File...")), accelerator: this.getAccelerator('workbench.action.files.openFile'), click: () => windows.manager.openFilePicker() });
 		let openFolder = new MenuItem({ label: mnemonicLabel(nls.localize({ key: 'miOpenFolder', comment: ['&& denotes a mnemonic'] }, "Open &&Folder...")), accelerator: this.getAccelerator('workbench.action.files.openFolder'), click: () => windows.manager.openFolderPicker() });
 
@@ -642,6 +642,15 @@ export class VSCodeMenu {
 				return [new MenuItem({ label: nls.localize('miCheckingForUpdates', "Checking For Updates..."), enabled: false })];
 
 			case um.State.UpdateAvailable:
+				if (platform.isLinux) {
+					const update = UpdateManager.availableUpdate;
+					return [new MenuItem({
+						label: nls.localize('miDownloadUpdate', "Download Available Update"), click: () => {
+							update.quitAndUpdate();
+						}
+					})];
+				}
+
 				let updateAvailableLabel = platform.isWindows
 					? nls.localize('miDownloadingUpdate', "Downloading Update...")
 					: nls.localize('miInstallingUpdate', "Installing Update...");

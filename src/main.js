@@ -95,13 +95,16 @@ function getNLSConfiguration() {
 	return { locale: initialLocale, availableLanguages: {} };
 }
 
-// Change cwd if given via env variable
+// Update cwd based on environment and platform
 try {
-	if (process.env.VSCODE_CWD) {
+	if (process.platform === 'win32') {
+		process.env.VSCODE_CWD = process.cwd(); // remember as environment variable
+		process.chdir(path.dirname(app.getPath('exe'))); // always set application folder as cwd
+	} else if (process.env.VSCODE_CWD) {
 		process.chdir(process.env.VSCODE_CWD);
 	}
 } catch (err) {
-	// noop
+	console.error(err);
 }
 
 // Set path according to being built or not
@@ -110,15 +113,23 @@ if (process.env.VSCODE_DEV) {
 	app.setPath('userData', path.join(appData, 'Code-Development'));
 }
 
+// Use custom user data dir if specified, required to run as root on Linux
+var args = process.argv;
+args.forEach(function (arg) {
+	if (arg.indexOf('--user-data-dir=') === 0) {
+		app.setPath('userData', arg.split('=')[1]);
+	}
+});
+
 // Mac: when someone drops a file to the not-yet running VSCode, the open-file event fires even before
 // the app-ready event. We listen very early for open-file and remember this upon startup as path to open.
 global.macOpenFiles = [];
-app.on('open-file', function(event, path) {
+app.on('open-file', function (event, path) {
 	global.macOpenFiles.push(path);
 });
 
 // Load our code once ready
-app.once('ready', function() {
+app.once('ready', function () {
 	var nlsConfig = getNLSConfiguration();
 	process.env['VSCODE_NLS_CONFIG'] = JSON.stringify(nlsConfig);
 	require('./bootstrap-amd').bootstrap('vs/workbench/electron-main/main');

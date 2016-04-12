@@ -87,6 +87,11 @@ interface ILogEntry {
 	arguments: any;
 }
 
+interface INativeOpenDialogOptions {
+	pickFolders?: boolean;
+	pickFiles?: boolean;
+}
+
 export class WindowsManager {
 
 	public static openedPathsListStorageKey = 'openedPathsList';
@@ -150,6 +155,8 @@ export class WindowsManager {
 		}, this);
 
 		ipc.on('vscode:startCrashReporter', (event: any, config: any) => {
+			env.log('IPC#vscode:startCrashReporter');
+
 			crashReporter.start(config);
 		});
 
@@ -179,10 +186,16 @@ export class WindowsManager {
 			this.openFilePicker();
 		});
 
-		ipc.on('vscode:openFolderPicker', () => {
+		ipc.on('vscode:openFolderPicker', (event, forceNewWindow?: boolean) => {
 			env.log('IPC#vscode-openFolderPicker');
 
-			this.openFolderPicker();
+			this.openFolderPicker(forceNewWindow);
+		});
+
+		ipc.on('vscode:openFileFolderPicker', (event, forceNewWindow?: boolean) => {
+			env.log('IPC#vscode-openFileFolderPicker');
+
+			this.openFileFolderPicker(forceNewWindow);
 		});
 
 		ipc.on('vscode:closeFolder', (event, windowId: number) => {
@@ -198,12 +211,6 @@ export class WindowsManager {
 			env.log('IPC#vscode-openNewWindow');
 
 			this.openNewWindow();
-		});
-
-		ipc.on('vscode:openFileFolderPicker', () => {
-			env.log('IPC#vscode-openFileFolderPicker');
-
-			this.openFolderPicker();
 		});
 
 		ipc.on('vscode:reloadWindow', (event, windowId: number) => {
@@ -319,6 +326,12 @@ export class WindowsManager {
 
 		ipc.on('vscode:broadcast', (event, windowId: number, target: string, broadcast: { channel: string; payload: any; }) => {
 			if (broadcast.channel && broadcast.payload) {
+				env.log('IPC#vscode:broadcast', target, broadcast.channel, broadcast.payload);
+
+				// Handle specific events on main side
+				this.onBroadcast(broadcast.channel, broadcast.payload);
+
+				// Send to windows
 				if (target) {
 					const otherWindowsWithTarget = WindowsManager.WINDOWS.filter(w => w.id !== windowId && typeof w.openedWorkspacePath === 'string');
 					const directTargetMatch = otherWindowsWithTarget.filter(w => this.isPathEqual(target, w.openedWorkspacePath));
@@ -347,10 +360,14 @@ export class WindowsManager {
 		});
 
 		ipc.on('vscode:exit', (event, code: number) => {
+			env.log('IPC#vscode:exit', code);
+
 			process.exit(code);
 		});
 
 		ipc.on('vscode:closeExtensionHostWindow', (event, extensionDevelopmentPath: string) => {
+			env.log('IPC#vscode:closeExtensionHostWindow', extensionDevelopmentPath);
+
 			const windowOnExtension = this.findWindow(null, null, extensionDevelopmentPath);
 			if (windowOnExtension) {
 				windowOnExtension.win.close();
@@ -380,6 +397,12 @@ export class WindowsManager {
 
 			if (explicit) {
 				this.sendToFocused('vscode:update-not-available', '');
+			}
+		});
+
+		UpdateManager.on('update-available', (url: string) => {
+			if (url) {
+				this.sendToFocused('vscode:update-available', url);
 			}
 		});
 
@@ -414,6 +437,14 @@ export class WindowsManager {
 
 			window.send('vscode:telemetry', { eventName: 'startupTime', data: { ellapsed: Date.now() - global.vscodeStart } });
 		});
+	}
+
+	private onBroadcast(event: string, payload: any): void {
+
+		// Theme changes
+		if (event === 'vscode:changeTheme' && typeof payload === 'string') {
+			storage.setItem(window.VSCodeWindow.themeStorageKey, payload);
+		}
 	}
 
 	public reload(win: window.VSCodeWindow, cli?: env.ICommandLineArguments): void {
@@ -671,6 +702,7 @@ export class WindowsManager {
 		configuration.appKeybindingsPath = env.appKeybindingsPath;
 		configuration.userExtensionsHome = env.userExtensionsHome;
 		configuration.extensionTips = env.product.extensionTips;
+		configuration.mainIPCHandle = env.mainIPCHandle;
 		configuration.sharedIPCHandle = env.sharedIPCHandle;
 		configuration.isBuilt = env.isBuilt;
 		configuration.crashReporter = env.product.crashReporter;
@@ -939,31 +971,35 @@ export class WindowsManager {
 		return state;
 	}
 
-	public openFilePicker(): void {
-		this.getFileOrFolderPaths(false, (paths: string[]) => {
+	public openFileFolderPicker(forceNewWindow?: boolean): void {
+		this.doPickAndOpen({ pickFolders: true, pickFiles: true }, forceNewWindow);
+	}
+
+	public openFilePicker(forceNewWindow?: boolean): void {
+		this.doPickAndOpen({ pickFiles: true }, forceNewWindow);
+	}
+
+	public openFolderPicker(forceNewWindow?: boolean): void {
+		this.doPickAndOpen({ pickFolders: true }, forceNewWindow);
+	}
+
+	private doPickAndOpen(options: INativeOpenDialogOptions, forceNewWindow?: boolean): void {
+		this.getFileOrFolderPaths(options, (paths: string[]) => {
 			if (paths && paths.length) {
-				this.open({ cli: env.cliArgs, pathsToOpen: paths });
+				this.open({ cli: env.cliArgs, pathsToOpen: paths, forceNewWindow });
 			}
 		});
 	}
 
-	public openFolderPicker(): void {
-		this.getFileOrFolderPaths(true, (paths: string[]) => {
-			if (paths && paths.length) {
-				this.open({ cli: env.cliArgs, pathsToOpen: paths });
-			}
-		});
-	}
-
-	private getFileOrFolderPaths(isFolder: boolean, clb: (paths: string[]) => void): void {
+	private getFileOrFolderPaths(options: INativeOpenDialogOptions, clb: (paths: string[]) => void): void {
 		let workingDir = storage.getItem<string>(WindowsManager.workingDirPickerStorageKey);
 		let focussedWindow = this.getFocusedWindow();
 
 		let pickerProperties: string[];
-		if (platform.isMacintosh) {
+		if (options.pickFiles && options.pickFolders) {
 			pickerProperties = ['multiSelections', 'openDirectory', 'openFile', 'createDirectory'];
 		} else {
-			pickerProperties = ['multiSelections', isFolder ? 'openDirectory' : 'openFile', 'createDirectory'];
+			pickerProperties = ['multiSelections', options.pickFolders ? 'openDirectory' : 'openFile', 'createDirectory'];
 		}
 
 		dialog.showOpenDialog(focussedWindow && focussedWindow.win, {
