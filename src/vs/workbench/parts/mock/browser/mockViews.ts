@@ -4,16 +4,19 @@
  *--------------------------------------------------------------------------------------------*/
 
 import nls = require('vs/nls');
+import { TPromise } from 'vs/base/common/winjs.base';
+import { IAction, IActionItem } from 'vs/base/common/actions';
 import lifecycle = require('vs/base/common/lifecycle');
 import dom = require('vs/base/browser/dom');
 import actions = require('vs/base/common/actions');
 import splitview = require('vs/base/browser/ui/splitview/splitview');
+import { IViewletView } from 'vs/workbench/browser/viewlet';
 import debug = require('vs/workbench/parts/debug/common/debug');
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 
 const $ = dom.emmet;
 
-export class InformationView extends splitview.CollapsibleView {
+export class InformationView extends splitview.CollapsibleView implements IViewletView {
 
 	private static MEMENTO = 'informationview.memento';
 	private bodyContainer: HTMLElement;
@@ -27,7 +30,6 @@ export class InformationView extends splitview.CollapsibleView {
 	private currentFile: string;
 	private currentLine: number;
 	private sessionDuration: number;
-
 
 	constructor(actionRunner: actions.IActionRunner, private settings: any,
 		@ITelemetryService private telemetryService: ITelemetryService,
@@ -139,5 +141,32 @@ export class InformationView extends splitview.CollapsibleView {
 
 	public dispose(): void {
 		this.toDispose = lifecycle.dispose(this.toDispose);
+	}
+
+	public create(): TPromise<void> {
+		return TPromise.as(null);
+	}
+
+	public setVisible(visible: boolean): TPromise<void> {
+		return TPromise.as(null);
+	}
+
+	public getActions(): IAction[] {
+		return [];
+	}
+
+	public getSecondaryActions(): IAction[] {
+		return [];
+	}
+
+	public getActionItem(action: IAction): IActionItem {
+		return null;
+	}
+
+	public focusBody(): void {
+		super.focus();
+	}
+
+	protected layoutBody(size: number): void {
 	}
 }

@@ -8,4 +8,4 @@ import { InformationView } from 'vs/workbench/parts/mock/browser/mockViews';
 import * as debug from 'vs/workbench/parts/debug/common/debug';
 
 // Register mock debug views
-debug.DebugViewRegistry.registerDebugView(new debug.DebugViewDescriptor(InformationView, 25));
+debug.DebugViewRegistry.registerDebugView(InformationView, 25);
