@@ -12,3 +12,13 @@
 	color: azure;
 	text-align: center;
 }
+
+.panel .information {
+	color: black;
+	text-align: center;
+}
+
+.vs-dark .panel .information {
+	color: azure;
+	text-align: center;
+}
