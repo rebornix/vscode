@@ -1,0 +1,32 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+/* TODO: Allow custom colors */
+
+.monaco-workbench .terminal-cursor {
+	background-color: black;
+}
+
+.monaco-workbench .reverse-video {
+	color: #CCC;
+}
+
+.vs-dark .monaco-workbench .terminal-cursor {
+	background-color: #CCC;
+}
+
+.vs-dark .monaco-workbench .reverse-video {
+	color: #252526;
+}
+
+/* High Contrast Theming */
+
+.vs-dark .monaco-workbench .terminal-cursor {
+	background-color: white;
+}
+
+.vs-dark .monaco-workbench .reverse-video {
+	color: black;
+}
