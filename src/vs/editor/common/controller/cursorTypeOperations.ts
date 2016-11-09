@@ -5,7 +5,7 @@
 'use strict';
 
 import { onUnexpectedError } from 'vs/base/common/errors';
-import { ReplaceCommand, ReplaceCommandWithoutChangingPosition, ReplaceCommandWithOffsetCursorState } from 'vs/editor/common/commands/replaceCommand';
+import { ReplaceCommand, ReplaceCommandWithoutChangingPosition, ReplaceCommandWithOffsetCursorState, ReplaceCommandThatPreservesSelection } from 'vs/editor/common/commands/replaceCommand';
 import { SingleCursorState, EditOperationResult, CursorColumns, CursorConfiguration, ICursorSimpleModel } from 'vs/editor/common/controller/cursorCommon';
 import { Range } from 'vs/editor/common/core/range';
 import { CursorChangeReason, ICommand } from 'vs/editor/common/editorCommon';
@@ -464,5 +464,88 @@ export class TypeOperations {
 
 	public static lineBreakInsert(config: CursorConfiguration, model: ITokenizedModel, cursor: SingleCursorState): EditOperationResult {
 		return this._enter(config, model, true, cursor.selection);
+	}
+
+	public static joinLines(config: CursorConfiguration, model: ITokenizedModel, cursor: SingleCursorState): EditOperationResult {
+		let selection = cursor.selection;
+		let position = cursor.position;
+		let startLineNumber: number,
+			startColumn: number,
+			endLineNumber: number,
+			endColumn: number,
+			columnDeltaOffset;
+
+		if (selection.isEmpty() || selection.startLineNumber === selection.endLineNumber) {
+			if (position.lineNumber < model.getLineCount()) {
+				startLineNumber = position.lineNumber;
+				startColumn = 1;
+				endLineNumber = startLineNumber + 1;
+				endColumn = model.getLineMaxColumn(endLineNumber);
+			} else {
+				startLineNumber = position.lineNumber;
+				startColumn = 1;
+				endLineNumber = position.lineNumber;
+				endColumn = model.getLineMaxColumn(position.lineNumber);
+			}
+		} else {
+			startLineNumber = selection.startLineNumber;
+			startColumn = 1;
+			endLineNumber = selection.endLineNumber;
+			endColumn = model.getLineMaxColumn(endLineNumber);
+		}
+
+		let trimmedLinesContent = model.getLineContent(startLineNumber);
+
+		for (let i = startLineNumber + 1; i <= endLineNumber; i++) {
+			let lineText = model.getLineContent(i);
+			let firstNonWhitespaceIdx = strings.firstNonWhitespaceIndex(lineText);
+
+			if (firstNonWhitespaceIdx >= 0) {
+				let insertSpace = true;
+
+				if (trimmedLinesContent === '' || trimmedLinesContent.charAt(trimmedLinesContent.length - 1) === ' ') {
+					insertSpace = false;
+				}
+
+				let lineTextWithoutIndent = lineText.substr(firstNonWhitespaceIdx);
+
+				if (lineTextWithoutIndent.charAt(0) === ')') {
+					insertSpace = false;
+				}
+
+				trimmedLinesContent += (insertSpace ? ' ' : '') + lineTextWithoutIndent;
+
+				if (insertSpace) {
+					columnDeltaOffset = lineTextWithoutIndent.length + 1;
+				} else {
+					columnDeltaOffset = lineTextWithoutIndent.length;
+				}
+			} else {
+				columnDeltaOffset = 0;
+			}
+		}
+
+		let deleteSelection = new Range(
+			startLineNumber,
+			startColumn,
+			endLineNumber,
+			endColumn
+		);
+
+		if (!deleteSelection.isEmpty()) {
+			if (!selection.isEmpty() && selection.startLineNumber === selection.endLineNumber) {
+				return new EditOperationResult(new ReplaceCommandThatPreservesSelection(deleteSelection, trimmedLinesContent, selection), {
+					shouldPushStackElementBefore: false,
+					shouldPushStackElementAfter: false
+				});
+			} else {
+				return new EditOperationResult(new ReplaceCommandWithOffsetCursorState(deleteSelection, trimmedLinesContent, 0, -columnDeltaOffset), {
+					shouldPushStackElementBefore: false,
+					shouldPushStackElementAfter: false
+				});
+			}
+		}
+
+		return null;
 	}
 }

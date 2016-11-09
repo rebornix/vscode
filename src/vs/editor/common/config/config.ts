@@ -623,7 +623,15 @@ registerCommand(new CoreCommand({
 		mac: { primary: KeyMod.WinCtrl | KeyCode.KEY_K, secondary: [KeyMod.CtrlCmd | KeyCode.Delete] }
 	}
 }));
-
+registerCommand(new CoreCommand({
+	id: H.JoinLines,
+	precondition: EditorContextKeys.Writable,
+	kbOpts: {
+		weight: CORE_WEIGHT,
+		kbExpr: EditorContextKeys.TextFocus,
+		primary: KeyMod.WinCtrl | KeyCode.KEY_J
+	}
+}));
 
 registerCommand(new WordCommand(H.CursorWordStartLeft, false, KeyCode.LeftArrow));
 registerCommand(new UnboundCoreCommand(H.CursorWordEndLeft));

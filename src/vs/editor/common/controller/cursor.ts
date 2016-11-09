@@ -1008,6 +1008,8 @@ export class Cursor extends EventEmitter {
 		this._handlers[H.DeleteAllRight] = (ctx) => this._deleteAllRight(ctx);
 		this._handlers[H.Cut] = (ctx) => this._cut(ctx);
 
+		this._handlers[H.JoinLines] = (ctx) => this._joinLines(ctx);
+
 		this._handlers[H.ExpandLineSelection] = (ctx) => this._expandLineSelection(ctx);
 
 		this._handlers[H.Undo] = (ctx) => this._undo(ctx);
@@ -1523,6 +1525,10 @@ export class Cursor extends EventEmitter {
 
 	private _cut(ctx: IMultipleCursorOperationContext): boolean {
 		return this._applyEditForAll(ctx, (cursor) => DeleteOperations.cut(cursor.config, cursor.model, cursor.modelState, this.enableEmptySelectionClipboard));
+	}
+
+	private _joinLines(ctx: IMultipleCursorOperationContext): boolean {
+		return this._applyEditForAll(ctx, (cursor) => TypeOperations.joinLines(cursor.config, cursor.model, cursor.modelState));
 	}
 
 	// -------------------- END editing operations

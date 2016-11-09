@@ -115,6 +115,10 @@ function deleteWordEndRight(cursor: Cursor) {
 	cursorCommand(cursor, H.DeleteWordEndRight);
 }
 
+function joinLines(cursor: Cursor) {
+	cursorCommand(cursor, H.JoinLines);
+}
+
 function assertCursor(cursor: Cursor, what: Position | Selection | Selection[]): void {
 	let selections: Selection[];
 	if (what instanceof Position) {
@@ -1777,6 +1781,34 @@ suite('Editor Controller - Regression tests', () => {
 			deleteWordEndRight(cursor); assert.equal(model.getLineContent(1), '3 */  ', '010');
 			deleteWordEndRight(cursor); assert.equal(model.getLineContent(1), ' */  ', '011');
 			deleteWordEndRight(cursor); assert.equal(model.getLineContent(1), '  ', '012');
+		});
+	});
+
+	test('joinLines', ()=> {
+		usingCursor({
+			text: [
+				'one',
+				'two',
+				'	three',
+				'      four',
+				'',
+				'    ',
+				'  five   ',
+				'  six',
+				'   )seven'
+			]
+		}, (model, cursor) => {
+			moveTo(cursor, 1, 1, false);
+
+			joinLines(cursor); assert.equal(model.getLineContent(1), 'one two', '001');
+			joinLines(cursor); assert.equal(model.getLineContent(1), 'one two three', '002');
+			joinLines(cursor); assert.equal(model.getLineContent(1), 'one two three four', '003');
+
+			moveTo(cursor, 2, 1, false);
+			moveTo(cursor, 4, 1, true);
+			joinLines(cursor); assert.equal(model.getLineContent(2), 'five   ', '004');
+			joinLines(cursor); assert.equal(model.getLineContent(2), 'five   six', '005');
+			joinLines(cursor); assert.equal(model.getLineContent(2), 'five   six)seven', '006');
 		});
 	});
 
