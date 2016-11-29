@@ -36,6 +36,7 @@ export interface IThemeData {
 export interface IThemeDocument {
 	name: string;
 	include: string;
+	gutterSettings: IThemeSetting;
 	settings: IThemeSetting[];
 }
 

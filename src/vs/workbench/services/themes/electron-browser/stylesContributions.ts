@@ -7,6 +7,13 @@ import { IThemeDocument, IThemeSetting, IThemeSettingStyle } from 'vs/workbench/
 import { Color } from 'vs/base/common/color';
 import { getBaseThemeId, getSyntaxThemeId } from 'vs/platform/theme/common/themes';
 
+interface ThemeGutterSettings {
+	background?: string;
+	foreground?: string;
+	selectionBackground?: string;
+	selectionForeground?: string;
+}
+
 interface ThemeGlobalSettings {
 	background?: string;
 	foreground?: string;
@@ -56,11 +63,13 @@ interface ThemeGlobalSettings {
 class Theme {
 
 	private selector: string;
+	private gutterSettings: ThemeGutterSettings = null;
 	private settings: IThemeSetting[];
 	private globalSettings: ThemeGlobalSettings = null;
 
 	constructor(private themeId: string, themeDocument: IThemeDocument) {
 		this.selector = `${getBaseThemeId(themeId)}.${getSyntaxThemeId(themeId)}`;
+		this.gutterSettings = themeDocument.gutterSettings;
 		this.settings = themeDocument.settings;
 		let settings = this.settings[0];
 		if (!settings.scope) {
@@ -70,6 +79,10 @@ class Theme {
 
 	public getSelector(): string {
 		return this.selector;
+	}
+
+	public getGutterSettings(): ThemeGutterSettings {
+		return this.gutterSettings;
 	}
 
 	public hasGlobalSettings(): boolean {
@@ -162,7 +175,11 @@ export class EditorStylesContribution {
 			new EditorFindStyleRules(),
 			new EditorReferenceSearchStyleRules(),
 			new EditorHoverHighlightStyleRules(),
-			new EditorLinkStyleRules()
+			new EditorLinkStyleRules(),
+			new GutterBackgroundStyleRules(),
+			new GutterForegroundStyleRules(),
+			new GutterLineHighlightBackgroundStyleRules(),
+			new GutterLineHighlightForegroundStyleRules
 		];
 		let theme = new Theme(themeId, themeDocument);
 		if (theme.hasGlobalSettings()) {
@@ -255,7 +272,7 @@ class EditorBackgroundStyleRules extends EditorStyleRules {
 		if (theme.getGlobalSettings().background) {
 			let background = new Color(theme.getGlobalSettings().background);
 			this.addBackgroundColorRule(theme, '.monaco-editor-background', background, cssRules);
-			this.addBackgroundColorRule(theme, '.glyph-margin', background, cssRules);
+			//this.addBackgroundColorRule(theme, '.glyph-margin', background, cssRules);
 			cssRules.push(`.${themeSelector} .monaco-workbench .monaco-editor-background { background-color: ${background}; }`);
 		}
 	}
@@ -390,6 +407,53 @@ class EditorIndentGuidesStyleRules extends EditorStyleRules {
 			return new Color(theme.invisibles);
 		}
 		return null;
+	}
+}
+
+class GutterBackgroundStyleRules extends EditorStyleRules {
+	public getCssRules(theme: Theme, cssRules: string[]): void {
+		let themeSelector = theme.getSelector();
+		let gutterSetting = theme.getGutterSettings();
+		console.log(gutterSetting);
+		if (gutterSetting && gutterSetting.background) {
+			let background = new Color(gutterSetting.background);
+			this.addBackgroundColorRule(theme, '.glyph-margin', background, cssRules);
+			cssRules.push(`.monaco-editor.${themeSelector} .margin { background-color: ${background}; }`);
+		}
+	}
+}
+
+class GutterForegroundStyleRules extends EditorStyleRules {
+	public getCssRules(theme: Theme, cssRules: string[]): void {
+		let themeSelector = theme.getSelector();
+		let gutterSetting = theme.getGutterSettings();
+		if (gutterSetting && gutterSetting.foreground) {
+			let foreground = new Color(gutterSetting.foreground);
+			cssRules.push(`.${themeSelector} .line-numbers { color: ${foreground}; }`);
+		}
+	}
+}
+
+class GutterLineHighlightBackgroundStyleRules extends EditorStyleRules {
+	public getCssRules(theme: Theme, cssRules: string[]): void {
+		let themeSelector = theme.getSelector();
+		let gutterSetting = theme.getGutterSettings();
+		console.log(gutterSetting);
+		if (gutterSetting && gutterSetting.selectionBackground) {
+			let background = new Color(gutterSetting.selectionBackground);
+			cssRules.push(`.monaco-editor.${themeSelector} .margin .current-line { background-color: ${background}; }`);
+		}
+	}
+}
+
+class GutterLineHighlightForegroundStyleRules extends EditorStyleRules {
+	public getCssRules(theme: Theme, cssRules: string[]): void {
+		let themeSelector = theme.getSelector();
+		let gutterSetting = theme.getGutterSettings();
+		if (gutterSetting && gutterSetting.selectionForeground) {
+			let foreground = new Color(gutterSetting.selectionForeground);
+			cssRules.push(`.${themeSelector} .margin .current-line { color: ${foreground}; }`);
+		}
 	}
 }
 
