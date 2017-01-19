@@ -9,14 +9,19 @@ import { KeyCode, KeyMod, KeyChord } from 'vs/base/common/keyCodes';
 import { SortLinesCommand } from 'vs/editor/contrib/linesOperations/common/sortLinesCommand';
 import { EditOperation } from 'vs/editor/common/core/editOperation';
 import { TrimTrailingWhitespaceCommand } from 'vs/editor/common/commands/trimTrailingWhitespaceCommand';
-import { EditorContextKeys, Handler, ICommand, ICommonCodeEditor, IIdentifiedSingleEditOperation } from 'vs/editor/common/editorCommon';
+import { EditorContextKeys, Handler, ICommand, ICommonCodeEditor, IIdentifiedSingleEditOperation, IModel } from 'vs/editor/common/editorCommon';
 import { ReplaceCommand, ReplaceCommandThatPreservesSelection } from 'vs/editor/common/commands/replaceCommand';
 import { Range } from 'vs/editor/common/core/range';
 import { Selection } from 'vs/editor/common/core/selection';
 import { editorAction, ServicesAccessor, IActionOptions, EditorAction, HandlerEditorAction } from 'vs/editor/common/editorCommonExtensions';
+import { LanguageConfigurationRegistry } from 'vs/editor/common/modes/languageConfigurationRegistry';
+import { createScopedLineTokens } from 'vs/editor/common/modes/supports';
 import { CopyLinesCommand } from './copyLinesCommand';
 import { DeleteLinesCommand } from './deleteLinesCommand';
 import { MoveLinesCommand } from './moveLinesCommand';
+import * as strings from 'vs/base/common/strings';
+import { ShiftCommand } from 'vs/editor/common/commands/shiftCommand';
+import { TextModel } from 'vs/editor/common/model/textModel';
 
 // copy lines
 
@@ -314,6 +319,133 @@ class OutdentLinesAction extends HandlerEditorAction {
 				primary: KeyMod.CtrlCmd | KeyCode.US_OPEN_SQUARE_BRACKET
 			}
 		});
+	}
+}
+
+@editorAction
+export class ReindentLinesAction extends EditorAction {
+	constructor() {
+		super({
+			id: 'editor.action.reindentlines',
+			label: nls.localize('editor.reindentlines', "Reindent Lines"),
+			alias: 'Reindent Lines',
+			precondition: EditorContextKeys.Writable
+		});
+	}
+
+	private shiftIndent(tabSize: number, indentation: string, count?: number): string {
+		count = count || 1;
+		let desiredIndentCount = ShiftCommand.shiftIndentCount(indentation, indentation.length + count, tabSize);
+		let newIndentation = '';
+		for (let i = 0; i < desiredIndentCount; i++) {
+			newIndentation += '\t';
+		}
+
+		return newIndentation;
+	}
+
+	private unshiftIndent(tabSize: number, indentation: string, count?: number): string {
+		count = count || 1;
+		let desiredIndentCount = ShiftCommand.unshiftIndentCount(indentation, indentation.length + count, tabSize);
+		let newIndentation = '';
+		for (let i = 0; i < desiredIndentCount; i++) {
+			newIndentation += '\t';
+		}
+
+		return newIndentation;
+	}
+
+	private getLineInfo(model: IModel, lineNumber: number) {
+		let column = model.getLineMaxColumn(lineNumber);
+		let lineTokens = model.getLineTokens(lineNumber, false);
+		let scopedLineTokens = createScopedLineTokens(lineTokens, column - 1);
+
+		let languageId = scopedLineTokens.languageId;
+		let text = lineTokens.getLineContent();
+
+		return {
+			languageId: languageId,
+			text: text
+		};
+	}
+
+	public run(accessor: ServicesAccessor, editor: ICommonCodeEditor): void {
+		let model = editor.getModel();
+		let maxLineNumber = model.getLineCount();
+		if (maxLineNumber <= 1) {
+			return;
+		}
+
+		let indentationRules = LanguageConfigurationRegistry.getIndentationRules(model.getLanguageIdentifier().id);
+
+		if (!indentationRules) {
+			return;
+		}
+
+		let startLineNumber = 1;
+		while (startLineNumber <= maxLineNumber) {
+			if (!indentationRules.unIndentedLinePattern) {
+				break;
+			}
+
+			let lineInfo = this.getLineInfo(model, startLineNumber);
+			if (!indentationRules.unIndentedLinePattern.test(lineInfo.text)) {
+				break;
+			}
+
+			startLineNumber++;
+		}
+
+		if (startLineNumber > maxLineNumber - 1) {
+			return;
+		}
+
+		let currentLineInfo = this.getLineInfo(model, startLineNumber);
+		let indentEdits = [];
+		let globalIndent = strings.getLeadingWhitespace(currentLineInfo.text);
+		let idealIndentForNextLine = globalIndent;
+		let { tabSize, insertSpaces } = model.getOptions();
+
+		if (indentationRules.increaseIndentPattern && indentationRules.increaseIndentPattern.test(currentLineInfo.text)) {
+			idealIndentForNextLine = this.shiftIndent(tabSize, idealIndentForNextLine);
+			globalIndent = this.shiftIndent(tabSize, globalIndent);
+		}
+		else if (indentationRules.indentNextLinePattern && indentationRules.indentNextLinePattern.test(currentLineInfo.text)) {
+			idealIndentForNextLine = this.shiftIndent(tabSize, idealIndentForNextLine);
+		}
+
+		for (let lineNumber = startLineNumber + 1; lineNumber <= maxLineNumber; lineNumber++) {
+			let lineInfo = this.getLineInfo(model, lineNumber);
+
+			if (indentationRules.unIndentedLinePattern && indentationRules.unIndentedLinePattern.test(lineInfo.text)) {
+				continue;
+			}
+
+			let oldIndentation = strings.getLeadingWhitespace(lineInfo.text);
+			let adjustedLineContent = idealIndentForNextLine + lineInfo.text.substring(oldIndentation.length);
+
+			if (indentationRules.decreaseIndentPattern && indentationRules.decreaseIndentPattern.test(adjustedLineContent)) {
+				idealIndentForNextLine = this.unshiftIndent(tabSize, idealIndentForNextLine);
+				globalIndent = this.unshiftIndent(tabSize, globalIndent);
+			}
+
+			if (oldIndentation !== idealIndentForNextLine) {
+				indentEdits.push(EditOperation.replace(new Selection(lineNumber, 1, lineNumber, oldIndentation.length + 1), TextModel.normalizeIndentation(idealIndentForNextLine, tabSize, insertSpaces)));
+			}
+
+			// calculate idealIndentForNextLine
+			if (indentationRules.increaseIndentPattern && indentationRules.increaseIndentPattern.test(adjustedLineContent)) {
+				globalIndent = this.shiftIndent(tabSize, globalIndent);
+				idealIndentForNextLine = globalIndent;
+			}
+			else if (indentationRules.indentNextLinePattern && indentationRules.indentNextLinePattern.test(adjustedLineContent)) {
+				idealIndentForNextLine = this.shiftIndent(tabSize, idealIndentForNextLine);
+			} else {
+				idealIndentForNextLine = globalIndent;
+			}
+		}
+
+		editor.executeEdits(this.id, indentEdits);
 	}
 }
 
