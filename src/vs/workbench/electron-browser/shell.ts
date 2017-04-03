@@ -98,6 +98,7 @@ import { BareFontInfo } from 'vs/editor/common/config/fontInfo';
 import { restoreFontInfo, readFontInfo, saveFontInfo } from 'vs/editor/browser/config/configuration';
 import * as browser from 'vs/base/browser/browser';
 import SCMPreview from 'vs/workbench/parts/scm/browser/scmPreview';
+import { ISpellCheckService, SpellCheckService } from 'vs/workbench/parts/spellcheck/node/spellCheckService';
 import { readdir } from 'vs/base/node/pfs';
 import { join } from 'path';
 import 'vs/platform/opener/browser/opener.contribution';
@@ -404,6 +405,8 @@ export class WorkbenchShell {
 		serviceCollection.set(IUntitledEditorService, new SyncDescriptor(UntitledEditorService));
 
 		serviceCollection.set(ITextMateService, new SyncDescriptor(MainProcessTextMateSyntax));
+
+		serviceCollection.set(ISpellCheckService, new SyncDescriptor(SpellCheckService));
 
 		serviceCollection.set(ISearchService, new SyncDescriptor(SearchService));
 
