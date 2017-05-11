@@ -129,7 +129,7 @@ export class FindWidget extends Widget implements IOverlayWidget, IHorizontalSas
 				let width = originalWidth + data.startX - evt.currentX;
 				if (width < 411) {
 					reducedFindWidget = true;
-			}
+				}
 				if (width < 411 - 69) {
 					narrowFindWidget = true;
 				}
@@ -151,7 +151,12 @@ export class FindWidget extends Widget implements IOverlayWidget, IHorizontalSas
 			let collapsedFindWidget = false;
 			let reducedFindWidget = false;
 			let narrowFindWidget = false;
-			let widgetWidth = Math.max(411, dom.getTotalWidth(this._domNode)) - 69;
+			let widgetWidth = dom.getTotalWidth(this._domNode);
+			if (widgetWidth > 411) {
+				this._domNode.style.maxWidth = `${editorWidth - 28 - minimapWidth - 15}px`;
+				return;
+			}
+			widgetWidth = 411 - 69;
 			if (widgetWidth + 28 >= editorWidth + 50) {
 				collapsedFindWidget = true;
 			}
@@ -515,7 +520,7 @@ export class FindWidget extends Widget implements IOverlayWidget, IHorizontalSas
 		return ` (${kb.getLabel()})`;
 	}
 
-	private _buildFindPart(): HTMLElement {
+	private _buildFindPart(): { input: HTMLElement, buttons: HTMLElement } {
 		// Find input
 		this._findInput = this._register(new FindInput(null, this._contextViewProvider, {
 			width: FindWidget.FIND_INPUT_AREA_WIDTH,
@@ -591,13 +596,15 @@ export class FindWidget extends Widget implements IOverlayWidget, IHorizontalSas
 		let findPart = document.createElement('div');
 		findPart.className = 'find-part';
 		findPart.appendChild(this._findInput.domNode);
-		findPart.appendChild(this._matchesCount);
-		findPart.appendChild(this._prevBtn.domNode);
-		findPart.appendChild(this._nextBtn.domNode);
+		let findButtons = document.createElement('div');
+		findButtons.className = 'find-part';
+		findButtons.appendChild(this._matchesCount);
+		findButtons.appendChild(this._prevBtn.domNode);
+		findButtons.appendChild(this._nextBtn.domNode);
 
 		// Toggle selection button
 		this._toggleSelectionFind = this._register(new SimpleCheckbox({
-			parent: findPart,
+			parent: findButtons,
 			title: NLS_TOGGLE_SELECTION_FIND_TITLE,
 			onChange: () => {
 				if (this._toggleSelectionFind.checked) {
@@ -635,12 +642,15 @@ export class FindWidget extends Widget implements IOverlayWidget, IHorizontalSas
 			}
 		}));
 
-		findPart.appendChild(this._closeBtn.domNode);
+		findButtons.appendChild(this._closeBtn.domNode);
 
-		return findPart;
+		return {
+			input: findPart,
+			buttons: findButtons
+		};
 	}
 
-	private _buildReplacePart(): HTMLElement {
+	private _buildReplacePart(): { input: HTMLElement, buttons: HTMLElement } {
 		// Replace input
 		let replaceInput = document.createElement('div');
 		replaceInput.className = 'replace-input';
@@ -683,10 +693,15 @@ export class FindWidget extends Widget implements IOverlayWidget, IHorizontalSas
 		let replacePart = document.createElement('div');
 		replacePart.className = 'replace-part';
 		replacePart.appendChild(replaceInput);
-		replacePart.appendChild(this._replaceBtn.domNode);
-		replacePart.appendChild(this._replaceAllBtn.domNode);
+		let replaceBtn = document.createElement('div');
+		replaceBtn.className = 'replace-part';
+		replaceBtn.appendChild(this._replaceBtn.domNode);
+		replaceBtn.appendChild(this._replaceAllBtn.domNode);
 
-		return replacePart;
+		return {
+			input: replacePart,
+			buttons: replaceBtn
+		};
 	}
 
 	private _buildDomNode(): void {
@@ -715,8 +730,16 @@ export class FindWidget extends Widget implements IOverlayWidget, IHorizontalSas
 		this._domNode.setAttribute('aria-hidden', 'false');
 
 		this._domNode.appendChild(this._toggleReplaceBtn.domNode);
-		this._domNode.appendChild(findPart);
-		this._domNode.appendChild(replacePart);
+		let inputColumn = document.createElement('div');
+		inputColumn.className = 'inputColumn';
+		inputColumn.appendChild(findPart.input);
+		inputColumn.appendChild(replacePart.input);
+		let btnColumn = document.createElement('div');
+		btnColumn.className = 'buttonsColumn';
+		btnColumn.appendChild(findPart.buttons);
+		btnColumn.appendChild(replacePart.buttons);
+		this._domNode.appendChild(inputColumn);
+		this._domNode.appendChild(btnColumn);
 	}
 }
 

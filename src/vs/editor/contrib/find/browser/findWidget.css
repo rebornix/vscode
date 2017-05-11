@@ -50,7 +50,9 @@
 	top: -74px; /* find input height + replace input height + shadow (10px) */
 	height: 64px; /* find input height + replace input height */
 }
-.monaco-editor .find-widget.replaceToggled > .replace-part {
+.monaco-editor .find-widget.replaceToggled > .inputColumn > .replace-part,
+.monaco-editor .find-widget.replaceToggled > .buttonsColumn > .replace-part {
+	/*display: block;*/
 	display: flex;
 	display: -webkit-flex;
 	align-items: center;
@@ -79,12 +81,45 @@
 	transition: none;
 }
 
-.monaco-editor .find-widget > .find-part,
-.monaco-editor .find-widget > .replace-part {
-	margin: 4px 0 0 17px;
-	font-size: 12px;
+.monaco-editor .find-widget {
 	display: flex;
 	display: -webkit-flex;
+	align-items: center;
+}
+
+.monaco-editor .find-widget > .inputColumn {
+	display: flex;
+	display: -webkit-flex;
+	flex: 1;
+	flex-direction: column;
+}
+.monaco-editor .find-widget > .buttonsColumn {
+	display: flex;
+	display: -webkit-flex;
+	flex: initial;
+	flex-direction: column;
+}
+.monaco-editor .find-widget > .inputColumn > .find-part {
+	/*margin: 0 0 0 17px;*/
+	font-size: 12px;
+	display: flex;
+}
+.monaco-editor .find-widget > .inputColumn > .replace-part {
+	margin: 4px 0 0 0;
+	font-size: 12px;
+	display: flex;
+}
+.monaco-editor .find-widget > .buttonsColumn > .find-part {
+	margin: 0;
+	font-size: 12px;
+	display: flex;
+	align-items: center;
+}
+
+.monaco-editor .find-widget > .buttonsColumn > .replace-part {
+	margin: 4px 0 0 0;
+	font-size: 12px;
+	display: flex;
 	align-items: center;
 }
 
@@ -93,9 +128,12 @@
 	height: 25px;
 }
 
-.monaco-editor .find-widget > .find-part .monaco-inputbox > .wrapper > .input {
+.monaco-editor .find-widget > .inputColumn > .find-part .monaco-inputbox > .wrapper > .input {
 	width: 100% !important;
 	padding-right: 66px;
+}
+.monaco-editor .find-widget > .inputColumn > .replace-part  >.replace-input > .wrapper > .input {
+	width: 100% !important;
 }
 .monaco-editor .find-widget > .find-part .monaco-inputbox > .wrapper > .input,
 .monaco-editor .find-widget > .replace-part .monaco-inputbox > .wrapper > .input {
@@ -103,16 +141,22 @@
 	padding-bottom: 2px;
 }
 
-.monaco-editor .find-widget .monaco-findInput {
+.monaco-editor .find-widget .inputColumn .monaco-findInput {
 	vertical-align: middle;
 	display: flex;
 	flex:1;
+	width: 100% !important;
+}
+
+.monaco-editor .find-widget .inputColumn .replace-input {
+	vertical-align: middle;
+	display: flex;
+	flex:1;
+	width: 100% !important;
 }
 
 .monaco-editor .find-widget .matchesCount {
-	display: flex;
-	display: -webkit-flex;
-	flex: initial;
+	display: inline-block;
 	margin: 0 1px 0 3px;
 	padding: 2px 2px 0 2px;
 	height: 25px;
@@ -126,9 +170,7 @@
 	min-width: 20px;
 	width: 20px;
 	height: 20px;
-	display: flex;
-	display: -webkit-flex;
-	flex: initial;
+	display: inline-block;
 	margin-left: 3px;
 	background-position: center center;
 	background-repeat: no-repeat;
@@ -151,9 +193,11 @@
 }
 
 .monaco-editor .find-widget .button.toggle {
-	position: absolute;
+	/*position: absolute;
 	top: 0;
-	left: 0;
+	left: 0;*/
+	display: flex;
+	flex: initial;
 	width: 18px;
 	height: 100%;
 	-webkit-box-sizing:	border-box;
@@ -236,17 +280,17 @@
 	background-image: url('images/replace-all.svg');
 }
 
-.monaco-editor .find-widget > .replace-part {
+.monaco-editor .find-widget > .inputColumn > .replace-part,
+.monaco-editor .find-widget > .buttonsColumn > .replace-part {
 	display: none;
 }
 
-.monaco-editor .find-widget > .replace-part > .replace-input {
-	display: flex;
-	flex:1;
-	vertical-align: middle;
+
+.monaco-editor .find-widget > .inputColumn > .replace-part > .replace-input {
+	display: block;
 }
 
-.monaco-editor .find-widget > .replace-part > .replace-input > .monaco-inputbox {
+.monaco-editor .find-widget > .inputColumn >.replace-part > .replace-input > .monaco-inputbox {
 	width: 100%;
 }
 
