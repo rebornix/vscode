@@ -47,6 +47,19 @@ export class OnEnterSupport {
 		this._indentationRules = opts.indentationRules;
 	}
 
+	public onType(text: string): IndentAction {
+		if (this._indentationRules) {
+			if (this._indentationRules.unIndentedLinePattern && this._indentationRules.unIndentedLinePattern.test(text)) {
+				return null;
+			}
+
+			if (this._indentationRules.decreaseIndentPattern && this._indentationRules.decreaseIndentPattern.test(text)) {
+				return IndentAction.Outdent;
+			}
+		}
+		return null;
+	}
+
 	public onEnter(oneLineAboveText: string, beforeEnterText: string, afterEnterText: string): EnterAction {
 		// (1): `regExpRules`
 		for (let i = 0, len = this._regExpRules.length; i < len; i++) {

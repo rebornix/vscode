@@ -361,7 +361,7 @@ export class LanguageConfigurationRegistryImpl {
 		};
 	}
 
-	private getIndentationAtPosition(model: ITokenizedModel, lineNumber: number, column: number): string {
+public getIndentationAtPosition(model: ITokenizedModel, lineNumber: number, column: number): string {
 		let lineText = model.getLineContent(lineNumber);
 		let indentation = strings.getLeadingWhitespace(lineText);
 		if (indentation.length > column - 1) {
@@ -372,10 +372,15 @@ export class LanguageConfigurationRegistryImpl {
 	}
 
 	private getLastValidLine(model: ITokenizedModel, lineNumber: number, onEnterSupport: OnEnterSupport): number {
+		let languageID = model.getLanguageIdAtPosition(lineNumber, 0);
 		if (lineNumber > 1) {
 			let lastLineNumber = lineNumber - 1;
 
 			for (lastLineNumber = lineNumber - 1; lastLineNumber >= 1; lastLineNumber--) {
+				if (model.getLanguageIdAtPosition(lastLineNumber, 0) !== languageID) {
+					return -1;
+				}
+
 				let lineText = model.getLineContent(lastLineNumber);
 				if (!onEnterSupport.shouldIgnore(lineText) && onEnterSupport.containNonWhitespace(lineText)) {
 					break;
@@ -404,6 +409,28 @@ export class LanguageConfigurationRegistryImpl {
 		let column = isNaN(columnNumber) ? model.getLineMaxColumn(lineNumber) - 1 : columnNumber;
 		let scopedLineTokens = createScopedLineTokens(lineTokens, column);
 		return scopedLineTokens;
+	}
+
+	public getIndentActionForContnet(): IndentAction {
+		return null;
+	}
+
+	public getGoodIndentActionForType(model: ITokenizedModel, lineNumber: number, column: number, ch: string):
+		IndentAction {
+		let maxColumn = model.getLineMaxColumn(lineNumber);
+		let indentation = this.getIndentationAtPosition(model, lineNumber, column);
+
+		let scopedLineTokens = this.getScopedLineTokens(model, lineNumber, maxColumn);
+		let onEnterSupport = this._getOnEnterSupport(scopedLineTokens.languageId);
+		if (!onEnterSupport) {
+			return null;
+		}
+
+		let scopedLineText = scopedLineTokens.getLineContent();
+		let beforeTypeText = scopedLineText.substr(0, column);
+		let afterTypeText = scopedLineText.substr(column + 1);
+
+		return onEnterSupport.onType(beforeTypeText + ch + afterTypeText);
 	}
 
 	public getGoodIndentActionForLine(model: ITokenizedModel, lineNumber: number) {

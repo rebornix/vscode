@@ -320,6 +320,32 @@ export class TypeOperations {
 		return null;
 	}
 
+	private static _runAutoIndentType(config: CursorConfiguration, model: ITokenizedModel, selections: Selection[], ch: string): ICommand {
+		let selection = selections[0];
+		let currentIndentation = LanguageConfigurationRegistry.getIndentationAtPosition(model, selection.startLineNumber, selection.startColumn);
+		let r = LanguageConfigurationRegistry.getGoodIndentActionForType(model, selections[0].startLineNumber, selections[0].startColumn, ch);
+
+		if (r === null || r === IndentAction.None) {
+			return null;
+		}
+
+		if (r === IndentAction.Outdent) {
+			if (currentIndentation === '') {
+				return null;
+			}
+			let actualIndentation = config.normalizeIndentation(TypeOperations.unshiftIndent(config, currentIndentation));
+			let firstNonWhitespace = model.getLineFirstNonWhitespaceColumn(selection.startLineNumber);
+			return TypeOperations._typeCommand(
+				new Range(selection.startLineNumber, 0, selection.startLineNumber, selection.startColumn),
+				actualIndentation +
+					model.getLineContent(selection.startLineNumber).substring(firstNonWhitespace - 1, selection.startColumn) + ch,
+				false
+			);
+		}
+
+		return null;
+	}
+
 	private static _isAutoClosingCloseCharType(config: CursorConfiguration, model: ITokenizedModel, selections: Selection[], ch: string): boolean {
 		if (!config.autoClosingBrackets || !config.autoClosingPairsClose.hasOwnProperty(ch)) {
 			return false;
@@ -552,6 +578,14 @@ export class TypeOperations {
 				commands[i] = TypeOperations._enter(config, model, false, selections[i]);
 			}
 			return new EditOperationResult(commands, {
+				shouldPushStackElementBefore: true,
+				shouldPushStackElementAfter: false,
+			});
+		}
+
+		let indentCommand = this._runAutoIndentType(config, model, selections, ch);
+		if (indentCommand) {
+			return new EditOperationResult([indentCommand], {
 				shouldPushStackElementBefore: true,
 				shouldPushStackElementAfter: false,
 			});
