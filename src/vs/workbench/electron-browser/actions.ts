@@ -83,6 +83,23 @@ export class CloseWindowAction extends Action {
 	}
 }
 
+export class CaptureWindowAction extends Action {
+
+	public static ID = 'workbench.action.screenshot';
+	public static LABEL = nls.localize('screenshot', "Capture Window");
+
+	constructor(id: string, label: string, @IWindowIPCService private windowService: IWindowIPCService) {
+		super(id, label);
+	}
+
+	public run(): TPromise<boolean> {
+		this.windowService.getWindow().screenshot((image) => {
+		});
+
+		return TPromise.as(true);
+	}
+}
+
 export class CloseFolderAction extends Action {
 
 	static ID = 'workbench.action.closeFolder';

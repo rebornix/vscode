@@ -21,6 +21,7 @@ import { CommandsRegistry } from 'vs/platform/commands/common/commands';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
 import URI from 'vs/base/common/uri';
 import { IEditorOptions, Position as EditorPosition } from 'vs/platform/editor/common/editor';
+import * as fs from 'fs';
 
 // --- List Commands
 
@@ -368,6 +369,23 @@ export function registerCommands(): void {
 		handler: accessor => {
 			const windowService = accessor.get(IWindowIPCService);
 			windowService.getWindow().close();
+		}
+	});
+
+	KeybindingsRegistry.registerCommandAndKeybindingRule({
+		id: 'workbench.action.screenshot', // close the window when the last editor is closed by reusing the same keybinding
+		weight: KeybindingsRegistry.WEIGHT.workbenchContrib(),
+		when: NoEditorsVisibleContext,
+		primary: KeyMod.CtrlCmd | KeyCode.KEY_W,
+		handler: accessor => {
+			const windowService = accessor.get(IWindowIPCService);
+			windowService.getWindow().screenshot((image) => {
+				fs.writeFile(`/Users/penlv/Documents/screenshots/test.png`, image.toPNG(), (err) => {
+					if (err) {
+						console.log(err);
+					}
+				});
+			});
 		}
 	});
 

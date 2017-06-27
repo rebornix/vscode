@@ -43,7 +43,7 @@ import { IExtensionService } from 'vs/platform/extensions/common/extensions';
 import { KeyboardMapperFactory } from 'vs/workbench/services/keybinding/electron-browser/keybindingService';
 import { Themable, EDITOR_DRAG_AND_DROP_BACKGROUND } from 'vs/workbench/common/theme';
 
-import { remote, ipcRenderer as ipc, webFrame } from 'electron';
+import { remote, ipcRenderer as ipc, webFrame, clipboard, nativeImage } from 'electron';
 import { activeContrastBorder } from 'vs/platform/theme/common/colorRegistry';
 
 const dialog = remote.dialog;
@@ -462,6 +462,13 @@ export class ElectronWindow extends Themable {
 		return TPromise.join(resources.map(resource => {
 			return stat(resource.fsPath).then(stats => stats.isDirectory() ? true : false, error => false);
 		})).then(res => res.some(res => !!res));
+	}
+
+	public screenshot(callback: (image: any) => void): void {
+		return this.win.capturePage(function (image) {
+			clipboard.writeImage(nativeImage.createFromBuffer(image.toPNG()));
+			callback(image);
+		});
 	}
 
 	public close(): void {
