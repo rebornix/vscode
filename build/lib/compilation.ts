@@ -38,8 +38,8 @@ function createCompile(build: boolean, emitError?: boolean): (token?: util.ICanc
 	return function (token?: util.ICancellationToken) {
 
 		const utf8Filter = util.filter(data => /(\/|\\)test(\/|\\).*utf8/.test(data.path));
-		const tsFilter = util.filter(data => /\.ts$/.test(data.path));
-		const noDeclarationsFilter = util.filter(data => !(/\.d\.ts$/.test(data.path)));
+		const tsFilter = util.filter(data => /\.ts[x]?$/.test(data.path));
+		const noDeclarationsFilter = util.filter(data => !(/\.d\.ts[x]?$/.test(data.path)));
 
 		const input = es.through();
 		const output = input

@@ -31,8 +31,8 @@ function createCompile(build, emitError) {
     var ts = tsb.create(opts, null, null, function (err) { return reporter(err.toString()); });
     return function (token) {
         var utf8Filter = util.filter(function (data) { return /(\/|\\)test(\/|\\).*utf8/.test(data.path); });
-        var tsFilter = util.filter(function (data) { return /\.ts$/.test(data.path); });
-        var noDeclarationsFilter = util.filter(function (data) { return !(/\.d\.ts$/.test(data.path)); });
+        var tsFilter = util.filter(function (data) { return /\.ts[x]?$/.test(data.path); });
+        var noDeclarationsFilter = util.filter(function (data) { return !(/\.d\.ts[x]?$/.test(data.path)); });
         var input = es.through();
         var output = input
             .pipe(utf8Filter)

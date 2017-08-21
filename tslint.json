@@ -261,7 +261,9 @@
 					"**/vs/base/parts/*/{common,browser}/**",
 					"**/vs/platform/*/{common,browser}/**",
 					"**/vs/editor/{common,browser}/**",
-					"**/vs/editor/contrib/**"
+					"**/vs/editor/contrib/**",
+					"react",
+					"react-dom"
 				]
 			},
 			{

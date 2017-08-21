@@ -6,7 +6,6 @@
 'use strict';
 
 import 'vs/css!./renameInputField';
-import { localize } from 'vs/nls';
 import { canceled } from 'vs/base/common/errors';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { TPromise } from 'vs/base/common/winjs.base';
@@ -15,13 +14,16 @@ import { ContentWidgetPositionPreference, ICodeEditor, IContentWidget, IContentW
 import { IThemeService, ITheme } from 'vs/platform/theme/common/themeService';
 import { inputBackground, inputBorder, inputForeground, widgetShadow } from 'vs/platform/theme/common/colorRegistry';
 import { Position } from 'vs/editor/common/core/position';
+import * as React from 'react';
+import * as ReactDom from 'react-dom';
 
 export default class RenameInputField implements IContentWidget, IDisposable {
 
 	private _editor: ICodeEditor;
 	private _position: Position;
 	private _domNode: HTMLElement;
-	private _inputField: HTMLInputElement;
+	private _inputProps: any;
+	private _inputFieldRef: any;
 	private _visible: boolean;
 	private _disposables: IDisposable[] = [];
 
@@ -56,14 +58,11 @@ export default class RenameInputField implements IContentWidget, IDisposable {
 
 	public getDomNode(): HTMLElement {
 		if (!this._domNode) {
-			this._inputField = document.createElement('input');
-			this._inputField.className = 'rename-input';
-			this._inputField.type = 'text';
-			this._inputField.setAttribute('aria-label', localize('renameAriaLabel', "Rename input. Type new name and press Enter to commit."));
+			this._inputProps = { 'style': {} };
+
 			this._domNode = document.createElement('div');
 			this._domNode.style.height = `${this._editor.getConfiguration().lineHeight}px`;
 			this._domNode.className = 'monaco-editor rename-box';
-			this._domNode.appendChild(this._inputField);
 
 			this.updateFont();
 			this.updateStyles(this.themeService.getTheme());
@@ -72,7 +71,7 @@ export default class RenameInputField implements IContentWidget, IDisposable {
 	}
 
 	private updateStyles(theme: ITheme): void {
-		if (!this._inputField) {
+		if (!this._inputProps) {
 			return;
 		}
 
@@ -81,25 +80,25 @@ export default class RenameInputField implements IContentWidget, IDisposable {
 		const widgetShadowColor = theme.getColor(widgetShadow);
 		const border = theme.getColor(inputBorder);
 
-		this._inputField.style.backgroundColor = background ? background.toString() : null;
-		this._inputField.style.color = foreground ? foreground.toString() : null;
+		this._inputProps.style.backgroundColor = background ? background.toString() : null;
+		this._inputProps.style.color = foreground ? foreground.toString() : null;
 
-		this._inputField.style.borderWidth = border ? '1px' : '0px';
-		this._inputField.style.borderStyle = border ? 'solid' : 'none';
-		this._inputField.style.borderColor = border ? border.toString() : 'none';
+		this._inputProps.style.borderWidth = border ? '1px' : '0px';
+		this._inputProps.style.borderStyle = border ? 'solid' : 'none';
+		this._inputProps.style.borderColor = border ? border.toString() : 'none';
 
 		this._domNode.style.boxShadow = widgetShadowColor ? ` 0 2px 8px ${widgetShadowColor}` : null;
 	}
 
 	private updateFont(): void {
-		if (!this._inputField) {
+		if (!this._inputProps) {
 			return;
 		}
 
 		const fontInfo = this._editor.getConfiguration().fontInfo;
-		this._inputField.style.fontFamily = fontInfo.fontFamily;
-		this._inputField.style.fontWeight = fontInfo.fontWeight;
-		this._inputField.style.fontSize = `${fontInfo.fontSize}px`;
+		this._inputProps.style.fontFamily = fontInfo.fontFamily;
+		this._inputProps.style.fontWeight = fontInfo.fontWeight;
+		this._inputProps.style.fontSize = `${fontInfo.fontSize}px`;
 	}
 
 	public getPosition(): IContentWidgetPosition {
@@ -124,12 +123,11 @@ export default class RenameInputField implements IContentWidget, IDisposable {
 	}
 
 	public getInput(where: Range, value: string, selectionStart: number, selectionEnd: number): TPromise<string> {
-
 		this._position = new Position(where.startLineNumber, where.startColumn);
-		this._inputField.value = value;
-		this._inputField.setAttribute('selectionStart', selectionStart.toString());
-		this._inputField.setAttribute('selectionEnd', selectionEnd.toString());
-		this._inputField.size = Math.max((where.endColumn - where.startColumn) * 1.1, 20);
+		this._inputProps.value = value;
+		this._inputProps.selectionStart = selectionStart;
+		this._inputProps.selectionEnd = selectionEnd;
+		this._inputProps.size = Math.max((where.endColumn - where.startColumn) * 1.1, 20);
 
 		let disposeOnDone: IDisposable[] = [],
 			always: Function;
@@ -149,7 +147,12 @@ export default class RenameInputField implements IContentWidget, IDisposable {
 			};
 
 			this._currentAcceptInput = () => {
-				if (this._inputField.value.trim().length === 0 || this._inputField.value === value) {
+				if (!this._inputFieldRef) {
+					this.cancelInput();
+					return;
+				}
+
+				if (this._inputFieldRef.value.trim().length === 0 || this._inputFieldRef.value === value) {
 					// empty or whitespace only or not changed
 					this.cancelInput();
 					return;
@@ -157,7 +160,7 @@ export default class RenameInputField implements IContentWidget, IDisposable {
 
 				this._currentAcceptInput = null;
 				this._currentCancelInput = null;
-				c(this._inputField.value);
+				c(this._inputFieldRef.value);
 			};
 
 			let onCursorChanged = () => {
@@ -186,10 +189,28 @@ export default class RenameInputField implements IContentWidget, IDisposable {
 		this._editor.layoutContentWidget(this);
 
 		setTimeout(() => {
-			this._inputField.focus();
-			this._inputField.setSelectionRange(
-				parseInt(this._inputField.getAttribute('selectionStart')),
-				parseInt(this._inputField.getAttribute('selectionEnd')));
+			let elm = React.createElement('input', {
+				type: 'text',
+				className: 'rename-input',
+				disabled: false,
+				style: {
+					backgroundColor: this._inputProps.style.backgroundColor,
+					color: this._inputProps.style.color,
+					fontSize: this._inputProps.style.fontSize,
+					fontFamily: this._inputProps.style.fontFamily,
+					borderWidth: this._inputProps.style.borderWidth,
+					borderStyle: this._inputProps.style.borderStyle,
+					borderColor: this._inputProps.style.borderColor
+				},
+				size: this._inputProps.size
+			});
+			this._inputFieldRef = ReactDom.render(elm, this._domNode);
+			if (this._inputFieldRef.value !== this._inputProps.value) {
+				this._inputFieldRef.value = this._inputProps.value;
+			}
+			this._inputFieldRef.focus();
+			this._inputFieldRef.setSelectionRange(this._inputProps.selectionStart, this._inputProps.selectionEnd);
+
 		}, 25);
 	}
 
