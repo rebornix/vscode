@@ -189,33 +189,52 @@ export default class RenameInputField implements IContentWidget, IDisposable {
 		this._editor.layoutContentWidget(this);
 
 		setTimeout(() => {
-			let elm = React.createElement('input', {
-				type: 'text',
-				className: 'rename-input',
-				disabled: false,
-				style: {
-					backgroundColor: this._inputProps.style.backgroundColor,
-					color: this._inputProps.style.color,
-					fontSize: this._inputProps.style.fontSize,
-					fontFamily: this._inputProps.style.fontFamily,
-					borderWidth: this._inputProps.style.borderWidth,
-					borderStyle: this._inputProps.style.borderStyle,
-					borderColor: this._inputProps.style.borderColor
-				},
-				size: this._inputProps.size
-			});
-			this._inputFieldRef = ReactDom.render(elm, this._domNode);
-			if (this._inputFieldRef.value !== this._inputProps.value) {
-				this._inputFieldRef.value = this._inputProps.value;
-			}
-			this._inputFieldRef.focus();
-			this._inputFieldRef.setSelectionRange(this._inputProps.selectionStart, this._inputProps.selectionEnd);
+			const inputStyle = {
+				backgroundColor: this._inputProps.style.backgroundColor,
+				color: this._inputProps.style.color,
+				fontSize: this._inputProps.style.fontSize,
+				fontFamily: this._inputProps.style.fontFamily,
+				borderWidth: this._inputProps.style.borderWidth,
+				borderStyle: this._inputProps.style.borderStyle,
+				borderColor: this._inputProps.style.borderColor
+			};
 
+			this._inputFieldRef = ReactDom.render(
+				<InputFieldComponent
+					style={inputStyle}
+					size={this._inputProps.size}
+					selectionStart={this._inputProps.selectionStart}
+					selectionEnd={this._inputProps.selectionEnd}
+					value={this._inputProps.value}
+				/>
+				, this._domNode);
 		}, 25);
 	}
 
 	private _hide(): void {
 		this._visible = false;
 		this._editor.layoutContentWidget(this);
+	}
+}
+
+class InputFieldComponent extends React.Component<any, any> {
+	constructor(props) {
+		super(props);
+	}
+
+	componentDidMount() {
+		this.refs.rename.focus();
+		this.refs.rename.setSelectionRange(this.props.selectionStart, this.props.selectionEnd);
+	}
+
+	render() {
+		return <input
+			type='text'
+			ref='rename'
+			className='rename-input'
+			style={this.props.inputStyle}
+			size={this.props.size}
+			value={this.props.value}
+		/>;
 	}
 }
