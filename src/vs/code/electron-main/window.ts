@@ -11,7 +11,7 @@ import { stopProfiling } from 'vs/base/node/profiler';
 import nls = require('vs/nls');
 import URI from 'vs/base/common/uri';
 import { IStorageService } from 'vs/platform/storage/node/storage';
-import { shell, screen, BrowserWindow, systemPreferences, app, TouchBar, nativeImage } from 'electron';
+import { shell, screen, BrowserWindow, systemPreferences, app, TouchBar,nativeImage } from 'electron';
 import { TPromise, TValueCallback } from 'vs/base/common/winjs.base';
 import { IEnvironmentService, ParsedArgs } from 'vs/platform/environment/common/environment';
 import { ILogService } from 'vs/platform/log/common/log';
@@ -867,38 +867,50 @@ export class CodeWindow implements ICodeWindow {
 
 		items.forEach(itemGroup => {
 			if (itemGroup.length) {
+				if (itemGroup[0].category === 'touchBar') {
+					let colorPicker = new TouchBar.TouchBarColorPicker({
+						selectedColor: '#333333',
+						change: (color: string) => {
+							this.sendWhenReady('vscode:runAction', itemGroup[0].id, { color: color });
+						}
+					});
+					groups.push(colorPicker);
+				} else {
+					const groupSegments = itemGroup.map(item => {
+						let icon: Electron.NativeImage;
+						if (item.iconPath) {
+							icon = nativeImage.createFromPath(item.iconPath);
+							if (icon.isEmpty()) {
+								icon = void 0;
+							}
+						}
+
+						return {
+							label: !icon ? item.title as string : void 0,
+							icon
+						};
+					});
+
+					// Group Touch Bar
+					const groupTouchBar = new TouchBar.TouchBarSegmentedControl({
+						segments: groupSegments,
+						mode: 'buttons',
+						segmentStyle: 'automatic',
+						change: (selectedIndex) => {
+							this.sendWhenReady('vscode:runAction', itemGroup[selectedIndex].id);
+						}
+					});
+
+					// Push and add small space between groups
+					groups.push(groupTouchBar);
+					groups.push(new TouchBar.TouchBarSpacer({ size: 'small' }));
+				}
 
 				// Group Segments
-				const groupSegments = itemGroup.map(item => {
-					let icon: Electron.NativeImage;
-					if (item.iconPath) {
-						icon = nativeImage.createFromPath(item.iconPath);
-						if (icon.isEmpty()) {
-							icon = void 0;
-						}
-					}
-
-					return {
-						label: !icon ? item.title as string : void 0,
-						icon
-					};
-				});
-
-				// Group Touch Bar
-				const groupTouchBar = new TouchBar.TouchBarSegmentedControl({
-					segments: groupSegments,
-					mode: 'buttons',
-					segmentStyle: 'automatic',
-					change: (selectedIndex) => {
-						this.sendWhenReady('vscode:runAction', itemGroup[selectedIndex].id);
-					}
-				});
-
-				// Push and add small space between groups
-				groups.push(groupTouchBar);
-				groups.push(new TouchBar.TouchBarSpacer({ size: 'small' }));
 			}
 		});
+
+
 
 		this._win.setTouchBar(new TouchBar({ items: groups }));
 	}

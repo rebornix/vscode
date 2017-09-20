@@ -127,8 +127,8 @@ export class ElectronWindow extends Themable {
 		});
 
 		// Support runAction event
-		ipc.on('vscode:runAction', (event, actionId: string) => {
-			this.commandService.executeCommand(actionId, { from: 'menu' }).done(_ => {
+		ipc.on('vscode:runAction', (event, actionId: string, additionalArgs: any) => {
+			this.commandService.executeCommand(actionId, { from: 'menu', args: additionalArgs }).done(_ => {
 				this.telemetryService.publicLog('commandExecuted', { id: actionId, from: 'menu' });
 			}, err => {
 				this.messageService.show(Severity.Error, err);

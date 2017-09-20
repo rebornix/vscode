@@ -12,7 +12,7 @@ import { editorContribution } from 'vs/editor/browser/editorBrowserExtensions';
 import { ICodeEditor } from 'vs/editor/browser/editorBrowser';
 import { Range } from 'vs/editor/common/core/range';
 import { Position } from 'vs/editor/common/core/position';
-import { ColorProviderRegistry } from 'vs/editor/common/modes';
+import { ColorProviderRegistry, IColor } from 'vs/editor/common/modes';
 import { ICodeEditorService } from 'vs/editor/common/services/codeEditorService';
 import { getColors, IColorData } from 'vs/editor/contrib/colorPicker/common/color';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
@@ -220,6 +220,19 @@ export class ColorDetector implements IEditorContribution {
 		for (let subType in this._decorationsTypes) {
 			this._codeEditorService.removeDecorationType(subType);
 		}
+	}
+
+	updateColorData(position: Position, color: IColor) {
+		const decorations = this._editor.getModel()
+			.getDecorationsInRange(Range.fromPositions(position, position))
+			.filter(d => this._colorDatas.has(d.id));
+
+		if (decorations.length === 0) {
+			return null;
+		}
+
+		let colorData = this._colorDatas.get(decorations[0].id);
+		colorData.colorInfo.color = color;
 	}
 
 	getColorData(position: Position): IColorData | null {

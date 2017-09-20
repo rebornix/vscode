@@ -205,6 +205,9 @@ export abstract class EditorAction extends EditorCommand {
 export function editorAction(ctor: { new(): EditorAction; }): void {
 	CommonEditorRegistry.registerEditorAction(new ctor());
 }
+export function editorTouchbarAction(ctor: { new(): EditorAction; }): void {
+	CommonEditorRegistry.registerEditorTouchbarAction(new ctor());
+}
 
 export function editorCommand(ctor: { new(): EditorCommand }): void {
 	registerEditorCommand(new ctor());
@@ -225,6 +228,9 @@ export module CommonEditorRegistry {
 
 	export function registerEditorAction(editorAction: EditorAction) {
 		EditorContributionRegistry.INSTANCE.registerEditorAction(editorAction);
+	}
+	export function registerEditorTouchbarAction(editorAction: EditorAction) {
+		EditorContributionRegistry.INSTANCE.registerEditorTouchbarAction(editorAction);
 	}
 	export function getEditorActions(): EditorAction[] {
 		return EditorContributionRegistry.INSTANCE.getEditorActions();
@@ -304,6 +310,19 @@ class EditorContributionRegistry {
 		let menuItem = action.toMenuItem();
 		if (menuItem) {
 			MenuRegistry.appendMenuItem(MenuId.EditorContext, menuItem);
+		}
+
+		KeybindingsRegistry.registerCommandAndKeybindingRule(action.toCommandAndKeybindingRule(KeybindingsRegistry.WEIGHT.editorContrib()));
+
+		this.editorActions.push(action);
+	}
+
+	public registerEditorTouchbarAction(action: EditorAction) {
+		let menuItem = action.toMenuItem();
+		menuItem.command.category = 'touchBar';
+		menuItem.group = 'touchBar';
+		if (menuItem) {
+			MenuRegistry.appendMenuItem(MenuId.TouchBarContext, menuItem);
 		}
 
 		KeybindingsRegistry.registerCommandAndKeybindingRule(action.toCommandAndKeybindingRule(KeybindingsRegistry.WEIGHT.editorContrib()));
