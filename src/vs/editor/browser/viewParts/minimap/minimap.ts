@@ -35,6 +35,8 @@ const enum RenderMinimap {
 	LargeBlocks = 4,
 }
 
+const PREVIEW_WINDOW_CONTEXT = 7;
+
 function getMinimapLineHeight(renderMinimap: RenderMinimap): number {
 	if (renderMinimap === RenderMinimap.Large) {
 		return Constants.x2_CHAR_HEIGHT;
@@ -109,6 +111,16 @@ class MinimapOptions {
 	 */
 	public readonly canvasOuterHeight: number;
 
+	/**
+	 * preview window height (in CSS px)
+	 */
+	public readonly previewWindowHeight: number;
+
+	/**
+	 * preview window width (in CSS px)
+	 */
+	public readonly previewWindowWidth: number;
+
 	constructor(configuration: editorCommon.IConfiguration) {
 		const pixelRatio = configuration.editor.pixelRatio;
 		const layoutInfo = configuration.editor.layoutInfo;
@@ -129,6 +141,9 @@ class MinimapOptions {
 
 		this.canvasOuterWidth = this.canvasInnerWidth / pixelRatio;
 		this.canvasOuterHeight = this.canvasInnerHeight / pixelRatio;
+
+		this.previewWindowWidth = layoutInfo.width / 2;
+		this.previewWindowHeight = configuration.editor.lineHeight * PREVIEW_WINDOW_CONTEXT;
 	}
 
 	public equals(other: MinimapOptions): boolean {
@@ -144,6 +159,8 @@ class MinimapOptions {
 			&& this.canvasInnerHeight === other.canvasInnerHeight
 			&& this.canvasOuterWidth === other.canvasOuterWidth
 			&& this.canvasOuterHeight === other.canvasOuterHeight
+			&& this.previewWindowHeight === other.previewWindowHeight
+			&& this.previewWindowWidth === other.previewWindowWidth
 		);
 	}
 }
@@ -429,15 +446,19 @@ class MinimapBuffers {
 
 export class Minimap extends ViewPart {
 
-	private readonly _domNode: FastDomNode<HTMLElement>;
+	private readonly _rootNode: FastDomNode<HTMLElement>;
+	private readonly _viewNode: FastDomNode<HTMLElement>;
 	private readonly _shadow: FastDomNode<HTMLElement>;
 	private readonly _canvas: FastDomNode<HTMLCanvasElement>;
 	private readonly _slider: FastDomNode<HTMLElement>;
+	private readonly _preview: FastDomNode<HTMLElement>;
 	private readonly _sliderHorizontal: FastDomNode<HTMLElement>;
 	private readonly _tokensColorTracker: MinimapTokensColorTracker;
 	private readonly _mouseDownListener: IDisposable;
 	private readonly _sliderMouseMoveMonitor: GlobalMouseMoveMonitor<IStandardMouseMoveEventData>;
 	private readonly _sliderMouseDownListener: IDisposable;
+	private readonly _mouseMoveListener: IDisposable;
+	private readonly _mouseOutListener: IDisposable;
 
 	private _options: MinimapOptions;
 	private _lastRenderData: RenderData;
@@ -450,28 +471,36 @@ export class Minimap extends ViewPart {
 		this._lastRenderData = null;
 		this._buffers = null;
 
-		this._domNode = createFastDomNode(document.createElement('div'));
-		PartFingerprints.write(this._domNode, PartFingerprint.Minimap);
-		this._domNode.setClassName(this._getMinimapDomNodeClassName());
-		this._domNode.setPosition('absolute');
-		this._domNode.setAttribute('role', 'presentation');
-		this._domNode.setAttribute('aria-hidden', 'true');
-		this._domNode.setRight(this._context.configuration.editor.layoutInfo.verticalScrollbarWidth);
+		this._rootNode = createFastDomNode(document.createElement('div'));
+		PartFingerprints.write(this._rootNode, PartFingerprint.Minimap);
+		this._rootNode.setClassName(this._getMinimapDomNodeClassName());
+		this._rootNode.setPosition('absolute');
+		this._rootNode.setAttribute('role', 'presentation');
+		this._rootNode.setAttribute('aria-hidden', 'true');
+		this._rootNode.setRight(this._context.configuration.editor.layoutInfo.verticalScrollbarWidth);
+
+		this._preview = createFastDomNode(document.createElement('div'));
+		this._preview.setPosition('absolute');
+		this._preview.setClassName('preview');
+		this._rootNode.appendChild(this._preview);
+
+		this._viewNode = createFastDomNode(document.createElement('div'));
+		this._rootNode.appendChild(this._viewNode);
 
 		this._shadow = createFastDomNode(document.createElement('div'));
 		this._shadow.setClassName('minimap-shadow-hidden');
-		this._domNode.appendChild(this._shadow);
+		this._viewNode.appendChild(this._shadow);
 
 		this._canvas = createFastDomNode(document.createElement('canvas'));
 		this._canvas.setPosition('absolute');
 		this._canvas.setLeft(0);
-		this._domNode.appendChild(this._canvas);
+		this._viewNode.appendChild(this._canvas);
 
 		this._slider = createFastDomNode(document.createElement('div'));
 		this._slider.setPosition('absolute');
 		this._slider.setClassName('minimap-slider');
 		this._slider.setLayerHinting(true);
-		this._domNode.appendChild(this._slider);
+		this._viewNode.appendChild(this._slider);
 
 		this._sliderHorizontal = createFastDomNode(document.createElement('div'));
 		this._sliderHorizontal.setPosition('absolute');
@@ -482,8 +511,17 @@ export class Minimap extends ViewPart {
 
 		this._applyLayout();
 
+		let mouseMovingOnMinimap = false;
+		const dismissPreview = () => {
+			if (mouseMovingOnMinimap) {
+				mouseMovingOnMinimap = false;
+				this._preview.toggleClassName('active', false);
+			}
+		};
+
 		this._mouseDownListener = dom.addStandardDisposableListener(this._canvas.domNode, 'mousedown', (e) => {
 			e.preventDefault();
+			dismissPreview();
 
 			const renderMinimap = this._options.renderMinimap;
 			if (renderMinimap === RenderMinimap.None) {
@@ -511,6 +549,8 @@ export class Minimap extends ViewPart {
 
 		this._sliderMouseDownListener = dom.addStandardDisposableListener(this._slider.domNode, 'mousedown', (e) => {
 			e.preventDefault();
+			dismissPreview();
+
 			if (e.leftButton && this._lastRenderData) {
 
 				const initialMousePosition = e.posy;
@@ -542,12 +582,60 @@ export class Minimap extends ViewPart {
 				);
 			}
 		});
+
+		this._mouseMoveListener = dom.addDisposableListener(this._viewNode.domNode, 'mousemove', (e) => {
+			if (!mouseMovingOnMinimap) {
+				mouseMovingOnMinimap = true;
+				this._preview.toggleClassName('active', true);
+			}
+
+			let offsetY = e.offsetY;
+
+			if (e.target === this._sliderHorizontal.domNode) {
+				offsetY += this._slider.domNode.offsetTop;
+			}
+
+			const renderMinimap = this._options.renderMinimap;
+			if (renderMinimap === RenderMinimap.None) {
+				return;
+			}
+			if (!this._lastRenderData) {
+				return;
+			}
+
+			const minimapLineHeight = getMinimapLineHeight(renderMinimap);
+			const internalOffsetY = this._options.pixelRatio * offsetY;
+			const lineIndex = Math.floor(internalOffsetY / minimapLineHeight);
+
+
+			let lineNumber = lineIndex + this._lastRenderData.renderedLayout.startLineNumber;
+			lineNumber = Math.min(lineNumber, this._context.model.getLineCount());
+
+			let startLineNumber = Math.max(1, lineNumber - 3);
+			let endLineNumber = Math.min(this._context.model.getLineCount(), startLineNumber + PREVIEW_WINDOW_CONTEXT);
+
+			let needed: boolean[] = [];
+			for (let i = 0; i < endLineNumber - startLineNumber + 1; i++) {
+				needed[i] = true;
+			}
+
+			let newContent = this._context.model.getHTMLToCopy([new Range(startLineNumber, 1, endLineNumber, 100)], false);
+			this._preview.domNode.innerHTML = newContent;
+
+			this._preview.setTop(offsetY);
+		});
+
+		this._mouseOutListener = dom.addDisposableListener(this._viewNode.domNode, 'mouseout', (e) => {
+			dismissPreview();
+		});
 	}
 
 	public dispose(): void {
 		this._mouseDownListener.dispose();
 		this._sliderMouseMoveMonitor.dispose();
 		this._sliderMouseDownListener.dispose();
+		this._mouseMoveListener.dispose();
+		this._mouseOutListener.dispose();
 		super.dispose();
 	}
 
@@ -559,18 +647,21 @@ export class Minimap extends ViewPart {
 	}
 
 	public getDomNode(): FastDomNode<HTMLElement> {
-		return this._domNode;
+		return this._rootNode;
 	}
 
 	private _applyLayout(): void {
-		this._domNode.setWidth(this._options.minimapWidth);
-		this._domNode.setHeight(this._options.minimapHeight);
+		this._rootNode.setWidth(this._options.minimapWidth);
+		this._rootNode.setHeight(this._options.minimapHeight);
 		this._shadow.setHeight(this._options.minimapHeight);
 		this._canvas.setWidth(this._options.canvasOuterWidth);
 		this._canvas.setHeight(this._options.canvasOuterHeight);
 		this._canvas.domNode.width = this._options.canvasInnerWidth;
 		this._canvas.domNode.height = this._options.canvasInnerHeight;
 		this._slider.setWidth(this._options.minimapWidth);
+		this._preview.setHeight(this._options.previewWindowHeight);
+		this._preview.setWidth(this._options.previewWindowWidth);
+		this._preview.setLeft(-this._options.previewWindowWidth);
 	}
 
 	private _getBuffer(): ImageData {
@@ -594,7 +685,7 @@ export class Minimap extends ViewPart {
 		this._lastRenderData = null;
 		this._buffers = null;
 		this._applyLayout();
-		this._domNode.setClassName(this._getMinimapDomNodeClassName());
+		this._rootNode.setClassName(this._getMinimapDomNodeClassName());
 		return true;
 	}
 
