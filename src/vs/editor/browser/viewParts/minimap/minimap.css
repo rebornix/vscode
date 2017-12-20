@@ -31,7 +31,6 @@
 	transition: opacity 100ms linear;
 	position: absolute;
 	box-sizing: border-box;
-	border: 2px white solid;
 	overflow: hidden;
 	display: none;
 }
