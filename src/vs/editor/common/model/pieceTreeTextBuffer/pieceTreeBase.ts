@@ -9,6 +9,8 @@ import { CharCode } from 'vs/base/common/charCode';
 import { Range } from 'vs/editor/common/core/range';
 import { ITextSnapshot } from 'vs/platform/files/common/files';
 import { leftest, righttest, updateTreeMetadata, rbDelete, fixInsert, NodeColor, SENTINEL, TreeNode } from 'vs/editor/common/model/pieceTreeTextBuffer/rbTreeBase';
+import { SearchData, isValidMatch, Searcher, createFindMatch } from 'vs/editor/common/model/textModelSearch';
+import { FindMatch } from 'vs/editor/common/model';
 
 // const lfRegex = new RegExp(/\r\n|\r|\n/g);
 
@@ -527,6 +529,105 @@ export class PieceTreeBase {
 		return this.getOffsetAt(lineNumber + 1, 1) - this.getOffsetAt(lineNumber, 1) - this._EOLLength;
 	}
 
+	public findMatchesInNode(node: TreeNode, searcher: Searcher, startLineNumber: number, startCursor: BufferCursor, endCursor: BufferCursor, searchData: SearchData, captureMatches: boolean, limitResultCount: number, resultLen: number, result: FindMatch[]) {
+		let buffer = this._buffers[node.piece.bufferIndex];
+		let startOffsetInBuffer = this.offsetInBuffer(node.piece.bufferIndex, node.piece.start);
+		let start = this.offsetInBuffer(node.piece.bufferIndex, startCursor);
+		let end = this.offsetInBuffer(node.piece.bufferIndex, endCursor);
+
+		let m: RegExpExecArray;
+		// Reset regex to search from the beginning
+		searcher.reset(start);
+		let ret: BufferCursor = { line: 0, column: 0 };
+
+		do {
+			m = searcher.next(buffer.buffer);
+
+			if (m) {
+				if (m.index >= end) {
+					return resultLen;
+				}
+				this.positionInBuffer(node, m.index - startOffsetInBuffer, ret);
+				let lineFeedCnt = this.getLineFeedCnt(node.piece.bufferIndex, node.piece.start, ret);
+				result[resultLen++] = createFindMatch(new Range(startLineNumber + lineFeedCnt, ret.column + 1, startLineNumber + lineFeedCnt, ret.column + 1 + m[0].length), m, captureMatches);
+				// if (resultLen >= limitResultCount) {
+				// 	return resultLen;
+				// }
+			}
+
+		} while (m);
+		return resultLen;
+	}
+
+	public findMatchesLineByLine(searchRange: Range, searchData: SearchData, captureMatches: boolean, limitResultCount: number): FindMatch[] {
+		const result: FindMatch[] = [];
+		let resultLen = 0;
+		const searcher = new Searcher(searchData.wordSeparators, searchData.regex);
+
+		let startPostion = this.nodeAt2(searchRange.startLineNumber, searchRange.startColumn);
+		let endPosition = this.nodeAt2(searchRange.endLineNumber, searchRange.endColumn);
+		let start = this.positionInBuffer(startPostion.node, startPostion.remainder);
+		let end = this.positionInBuffer(endPosition.node, endPosition.remainder);
+
+		if (startPostion.node === endPosition.node) {
+			this.findMatchesInNode(startPostion.node, searcher, searchRange.startLineNumber, start, end, searchData, captureMatches, limitResultCount, resultLen, result);
+			return result;
+		}
+
+		// first node
+		resultLen = this.findMatchesInNode(startPostion.node, searcher, searchRange.startLineNumber, start, startPostion.node.piece.end, searchData, captureMatches, limitResultCount, resultLen, result);
+
+		let startLineOfNode = this.getPositionAt(startPostion.nodeStartOffset).lineNumber;
+		let startLineNumber = startLineOfNode + startPostion.node.piece.lineFeedCnt;
+		let next = startPostion.node.next();
+
+		while(next !== endPosition.node) {
+			resultLen = this.findMatchesInNode(next, searcher, startLineNumber, next.piece.start, next.piece.end, searchData, captureMatches, limitResultCount, resultLen, result);
+			startLineNumber += next.piece.lineFeedCnt;
+			next = next.next();
+		}
+
+		resultLen = this.findMatchesInNode(next, searcher, startLineNumber, next.piece.start, end, searchData, captureMatches, limitResultCount, resultLen, result);
+
+		console.log(resultLen);
+		return result;
+	}
+
+	private _findMatchesInLine(searchData: SearchData, text: string, lineNumber: number, deltaOffset: number, resultLen: number, result: FindMatch[], captureMatches: boolean, limitResultCount: number): number {
+		const wordSeparators = searchData.wordSeparators;
+		if (!captureMatches && searchData.simpleSearch) {
+			const searchString = searchData.simpleSearch;
+			const searchStringLen = searchString.length;
+			const textLength = text.length;
+
+			let lastMatchIndex = -searchStringLen;
+			while ((lastMatchIndex = text.indexOf(searchString, lastMatchIndex + searchStringLen)) !== -1) {
+				if (!wordSeparators || isValidMatch(wordSeparators, text, textLength, lastMatchIndex, searchStringLen)) {
+					result[resultLen++] = new FindMatch(new Range(lineNumber, lastMatchIndex + 1 + deltaOffset, lineNumber, lastMatchIndex + 1 + searchStringLen + deltaOffset), null);
+					// if (resultLen >= limitResultCount) {
+					// 	return resultLen;
+					// }
+				}
+			}
+			return resultLen;
+		}
+
+		const searcher = new Searcher(searchData.wordSeparators, searchData.regex);
+		let m: RegExpExecArray;
+		// Reset regex to search from the beginning
+		searcher.reset(0);
+		do {
+			m = searcher.next(text);
+			if (m) {
+				result[resultLen++] = createFindMatch(new Range(lineNumber, m.index + 1 + deltaOffset, lineNumber, m.index + 1 + m[0].length + deltaOffset), m, captureMatches);
+				if (resultLen >= limitResultCount) {
+					return resultLen;
+				}
+			}
+		} while (m);
+		return resultLen;
+	}
+
 	// #endregion
 
 	// #region Piece Table
@@ -720,7 +821,7 @@ export class PieceTreeBase {
 		this.validateCRLFWithPrevNode(newNode);
 	}
 
-	positionInBuffer(node: TreeNode, remainder: number): BufferCursor {
+	positionInBuffer(node: TreeNode, remainder: number, ret?: BufferCursor): BufferCursor {
 		let piece = node.piece;
 		let bufferIndex = node.piece.bufferIndex;
 		let lineStarts = this._buffers[bufferIndex].lineStarts;
@@ -754,6 +855,12 @@ export class PieceTreeBase {
 			} else {
 				break;
 			}
+		}
+
+		if (ret) {
+			ret.line = mid;
+			ret.column = offset - midStart;
+			return null;
 		}
 
 		return {

@@ -116,7 +116,7 @@ export class SearchData {
 	}
 }
 
-function createFindMatch(range: Range, rawMatches: RegExpExecArray, captureMatches: boolean): FindMatch {
+export function createFindMatch(range: Range, rawMatches: RegExpExecArray, captureMatches: boolean): FindMatch {
 	if (!captureMatches) {
 		return new FindMatch(range, null);
 	}
@@ -154,6 +154,9 @@ export class TextModelSearch {
 				return result;
 			}
 			return this._doFindMatchesMultiline(model, searchRange, new Searcher(searchData.wordSeparators, searchData.regex), captureMatches, limitResultCount);
+		}
+		if (model.hasSearchOptimization()) {
+			return model.findMatchesLineByLine(searchRange, searchData, captureMatches, limitResultCount);
 		}
 		return this._doFindMatchesLineByLine(model, searchRange, searchData, captureMatches, limitResultCount);
 	}
@@ -468,14 +471,14 @@ function rightIsWordBounday(wordSeparators: WordCharacterClassifier, text: strin
 	return false;
 }
 
-function isValidMatch(wordSeparators: WordCharacterClassifier, text: string, textLength: number, matchStartIndex: number, matchLength: number): boolean {
+export function isValidMatch(wordSeparators: WordCharacterClassifier, text: string, textLength: number, matchStartIndex: number, matchLength: number): boolean {
 	return (
 		leftIsWordBounday(wordSeparators, text, textLength, matchStartIndex, matchLength)
 		&& rightIsWordBounday(wordSeparators, text, textLength, matchStartIndex, matchLength)
 	);
 }
 
-class Searcher {
+export class Searcher {
 	private _wordSeparators: WordCharacterClassifier;
 	private _searchRegex: RegExp;
 	private _prevMatchStartIndex: number;

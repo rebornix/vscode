@@ -30,7 +30,7 @@ import { getWordAtText } from 'vs/editor/common/model/wordHelper';
 import { ModelLinesTokens, ModelTokensChangedEventBuilder } from 'vs/editor/common/model/textModelTokens';
 import { guessIndentation } from 'vs/editor/common/model/indentationGuesser';
 import { EDITOR_MODEL_DEFAULTS } from 'vs/editor/common/config/editorOptions';
-import { TextModelSearch, SearchParams } from 'vs/editor/common/model/textModelSearch';
+import { TextModelSearch, SearchParams, SearchData } from 'vs/editor/common/model/textModelSearch';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { IStringStream, ITextSnapshot } from 'vs/platform/files/common/files';
 import { LinesTextBufferBuilder } from 'vs/editor/common/model/linesTextBuffer/linesTextBufferBuilder';
@@ -2250,6 +2250,17 @@ export class TextModel extends Disposable implements model.ITextModel {
 		return result;
 	}
 	//#endregion
+
+	hasSearchOptimization(): boolean {
+		return !!this._buffer.hasSearchOptimization;
+	}
+
+	findMatchesLineByLine(searchRange: Range, searchData: SearchData, captureMatches: boolean, limitResultCount: number): model.FindMatch[] {
+		if (this._buffer.hasSearchOptimization) {
+			return this._buffer.findMatchesLineByLine(searchRange, searchData, captureMatches, limitResultCount);
+		}
+		return null;
+	}
 }
 
 //#region Decorations

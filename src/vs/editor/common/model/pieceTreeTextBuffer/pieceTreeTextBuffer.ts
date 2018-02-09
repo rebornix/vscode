@@ -9,20 +9,23 @@ import { Position } from 'vs/editor/common/core/position';
 import * as strings from 'vs/base/common/strings';
 import { IValidatedEditOperation } from 'vs/editor/common/model/linesTextBuffer/linesTextBuffer';
 import { PieceTreeBase, StringBuffer } from 'vs/editor/common/model/pieceTreeTextBuffer/pieceTreeBase';
-import { IIdentifiedSingleEditOperation, EndOfLinePreference, ITextBuffer, ApplyEditsResult, IInternalModelContentChange } from 'vs/editor/common/model';
+import { IIdentifiedSingleEditOperation, EndOfLinePreference, ITextBuffer, ApplyEditsResult, IInternalModelContentChange, FindMatch } from 'vs/editor/common/model';
 import { ITextSnapshot } from 'vs/platform/files/common/files';
+import { SearchData } from 'vs/editor/common/model/textModelSearch';
 
 export class PieceTreeTextBuffer implements ITextBuffer {
 	private _pieceTree: PieceTreeBase;
 	private _BOM: string;
 	private _mightContainRTL: boolean;
 	private _mightContainNonBasicASCII: boolean;
+	hasSearchOptimization: boolean;
 
 	constructor(chunks: StringBuffer[], BOM: string, eol: '\r\n' | '\n', containsRTL: boolean, isBasicASCII: boolean, eolNormalized: boolean) {
 		this._BOM = BOM;
 		this._mightContainNonBasicASCII = !isBasicASCII;
 		this._mightContainRTL = containsRTL;
 		this._pieceTree = new PieceTreeBase(chunks, eol, eolNormalized);
+		this.hasSearchOptimization = true;
 	}
 
 	// #region TextBuffer
@@ -408,6 +411,10 @@ export class PieceTreeTextBuffer implements ITextBuffer {
 			});
 		}
 		return contentChanges;
+	}
+
+	findMatchesLineByLine(searchRange: Range, searchData: SearchData, captureMatches: boolean, limitResultCount: number): FindMatch[] {
+		return this._pieceTree.findMatchesLineByLine(searchRange, searchData, captureMatches, limitResultCount);
 	}
 
 	// #endregion
