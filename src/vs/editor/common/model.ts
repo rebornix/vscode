@@ -525,7 +525,7 @@ export interface ITextModel {
 	 * @param eol The end of line character preference. This will only be used for multiline ranges. Defaults to `EndOfLinePreference.TextDefined`.
 	 * @return The text.
 	 */
-	getValueInRange(range: IRange, eol?: EndOfLinePreference): string;
+	getValueInRange(range: IRange, eol?: EndOfLinePreference, ret?: string[]): string;
 
 	/**
 	 * Get the length of text in a certain range.
@@ -1086,7 +1086,7 @@ export interface ITextBuffer {
 	getPositionAt(offset: number): Position;
 	getRangeAt(offset: number, length: number): Range;
 
-	getValueInRange(range: Range, eol: EndOfLinePreference): string;
+	getValueInRange(range: Range, eol: EndOfLinePreference, ret?: string[]): string;
 	createSnapshot(preserveBOM: boolean): ITextSnapshot;
 	getValueLengthInRange(range: Range, eol: EndOfLinePreference): number;
 	getLength(): number;

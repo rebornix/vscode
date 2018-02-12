@@ -1446,7 +1446,7 @@ declare module monaco.editor {
 		 * @param eol The end of line character preference. This will only be used for multiline ranges. Defaults to `EndOfLinePreference.TextDefined`.
 		 * @return The text.
 		 */
-		getValueInRange(range: IRange, eol?: EndOfLinePreference): string;
+		getValueInRange(range: IRange, eol?: EndOfLinePreference, ret?: string[]): string;
 		/**
 		 * Get the length of text in a certain range.
 		 * @param range The range describing what text length to get.

@@ -26,6 +26,14 @@ export class ClipboardService implements IClipboardService {
 		return clipboard.readText();
 	}
 
+	public writeBuffer(format: string, buffer: Buffer): void {
+		clipboard.writeBuffer(format, buffer);
+	}
+
+	public readBuffer(format: string): Buffer {
+		return clipboard.readBuffer(format);
+	}
+
 	public readFindText(): string {
 		if (isMacintosh) {
 			return clipboard.readFindText();

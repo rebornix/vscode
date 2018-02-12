@@ -25,6 +25,16 @@ export interface IClipboardService {
 	readText(): string;
 
 	/**
+	 * Writes the buffer into the clipboard as format.
+	 */
+	writeBuffer(format: string, buffer: Buffer, type?: string): void;
+
+	/**
+	 * Reads the content of the clipboard in Buffer
+	 */
+	readBuffer(format: string): Buffer;
+
+	/**
 	 * Reads text from the system find pasteboard.
 	 */
 	readFindText(): string;

@@ -444,7 +444,7 @@ export class PieceTreeBase {
 		return new Position(1, 1);
 	}
 
-	public getValueInRange(range: Range): string {
+	public getValueInRange(range: Range, ret?: string[]): string {
 		if (range.startLineNumber === range.endLineNumber && range.startColumn === range.endColumn) {
 			return '';
 		}
@@ -452,6 +452,9 @@ export class PieceTreeBase {
 		let startPosition = this.nodeAt2(range.startLineNumber, range.startColumn);
 		let endPosition = this.nodeAt2(range.endLineNumber, range.endColumn);
 
+		if (ret) {
+			this.getValueInRange3(startPosition, endPosition, ret);
+		}
 		return this.getValueInRange2(startPosition, endPosition);
 	}
 
@@ -484,6 +487,38 @@ export class PieceTreeBase {
 		}
 
 		return ret;
+	}
+
+	public getValueInRange3(startPosition: NodePosition, endPosition: NodePosition, retArr?: string[]): void {
+		if (startPosition.node === endPosition.node) {
+			let node = startPosition.node;
+			let buffer = this._buffers[node.piece.bufferIndex].buffer;
+			let startOffset = this.offsetInBuffer(node.piece.bufferIndex, node.piece.start);
+			retArr.push(buffer.substring(startOffset + startPosition.remainder, startOffset + endPosition.remainder));
+			return;
+		}
+
+		let x = startPosition.node;
+		let buffer = this._buffers[x.piece.bufferIndex].buffer;
+		let startOffset = this.offsetInBuffer(x.piece.bufferIndex, x.piece.start);
+		retArr.push(buffer.substring(startOffset + startPosition.remainder, startOffset + x.piece.length));
+
+		x = x.next();
+		while (x !== SENTINEL) {
+			let buffer = this._buffers[x.piece.bufferIndex].buffer;
+			let startOffset = this.offsetInBuffer(x.piece.bufferIndex, x.piece.start);
+
+			if (x === endPosition.node) {
+				retArr.push(buffer.substring(startOffset, startOffset + endPosition.remainder));
+				break;
+			} else {
+				retArr.push(buffer.substr(startOffset, x.piece.length));
+			}
+
+			x = x.next();
+		}
+
+		return;
 	}
 
 	public getLinesContent(): string[] {

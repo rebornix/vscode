@@ -70,14 +70,19 @@ export class PieceTreeTextBuffer implements ITextBuffer {
 		return new Range(startPosition.lineNumber, startPosition.column, endPosition.lineNumber, endPosition.column);
 	}
 
-	public getValueInRange(range: Range, eol: EndOfLinePreference = EndOfLinePreference.TextDefined): string {
+	public getValueInRange(range: Range, eol: EndOfLinePreference = EndOfLinePreference.TextDefined, ret: string[] = null): string {
 		if (range.isEmpty()) {
 			return '';
 		}
 
-		const lineEnding = this._getEndOfLine(eol);
-		const text = this._pieceTree.getValueInRange(range);
-		return text.replace(/\r\n|\r|\n/g, lineEnding);
+		if (ret === null) {
+			const lineEnding = this._getEndOfLine(eol);
+			const text = this._pieceTree.getValueInRange(range);
+			return text.replace(/\r\n|\r|\n/g, lineEnding);
+		} else {
+			this._pieceTree.getValueInRange(range, ret);
+			return null;
+		}
 	}
 
 	public getValueLengthInRange(range: Range, eol: EndOfLinePreference = EndOfLinePreference.TextDefined): number {

@@ -16,6 +16,8 @@ import { registerEditorAction, IActionOptions, EditorAction, ICommandKeybindings
 import { CopyOptions } from 'vs/editor/browser/controller/textAreaInput';
 import { EditorContextKeys } from 'vs/editor/common/editorContextKeys';
 import { ICodeEditor } from 'vs/editor/browser/editorBrowser';
+import { IClipboardService } from 'vs/platform/clipboard/common/clipboardService';
+import { EndOfLinePreference } from '../../common/model';
 
 const CLIPBOARD_CONTEXT_MENU_GROUP = '9_cutcopypaste';
 
@@ -51,6 +53,20 @@ abstract class ExecCommandAction extends EditorAction {
 	}
 
 	public run(accessor: ServicesAccessor, editor: ICodeEditor): void {
+		let clipboardService = accessor.get(IClipboardService);
+		if (this.browserCommand === 'copy' && editor.getModel().isTooLargeForHavingARichMode() && clipboardService) {
+			let selection = editor.getSelection();
+			let model = editor.getModel();
+			let startOffset = model.getOffsetAt({ lineNumber: selection.startLineNumber, column: selection.startColumn });
+			let endOffset = model.getOffsetAt({ lineNumber: selection.endLineNumber, column: selection.endColumn });
+
+			if (endOffset - startOffset > 50 * 1024 * 1024) {
+				let ret = [];
+				model.getValueInRange(selection, EndOfLinePreference.TextDefined, ret);
+				let buffer = Buffer.from(ret);
+				clipboardService.writeBuffer('text/plain', buffer);
+			}
+		}
 		editor.focus();
 		document.execCommand(this.browserCommand);
 	}

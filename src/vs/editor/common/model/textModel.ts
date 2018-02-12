@@ -755,9 +755,9 @@ export class TextModel extends Disposable implements model.ITextModel {
 		return fullModelValue;
 	}
 
-	public getValueInRange(rawRange: IRange, eol: model.EndOfLinePreference = model.EndOfLinePreference.TextDefined): string {
+	public getValueInRange(rawRange: IRange, eol: model.EndOfLinePreference = model.EndOfLinePreference.TextDefined, ret?: string[]): string {
 		this._assertNotDisposed();
-		return this._buffer.getValueInRange(this.validateRange(rawRange), eol);
+		return this._buffer.getValueInRange(this.validateRange(rawRange), eol, ret);
 	}
 
 	public getValueLengthInRange(rawRange: IRange, eol: model.EndOfLinePreference = model.EndOfLinePreference.TextDefined): number {
