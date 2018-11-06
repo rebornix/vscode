@@ -17,13 +17,15 @@ export class PieceTreeTextBufferFactory implements ITextBufferFactory {
 		private readonly _cr: number,
 		private readonly _lf: number,
 		private readonly _crlf: number,
+		private readonly _ls: number,
+		private readonly _ps: number,
 		private readonly _containsRTL: boolean,
 		private readonly _isBasicASCII: boolean,
 		private readonly _normalizeEOL: boolean
 	) { }
 
 	private _getEOL(defaultEOL: DefaultEndOfLine): '\r\n' | '\n' {
-		const totalEOLCount = this._cr + this._lf + this._crlf;
+		const totalEOLCount = this._cr + this._lf + this._crlf + this._ls + this._ps;
 		const totalCRCount = this._cr + this._crlf;
 		if (totalEOLCount === 0) {
 			// This is an empty file or a file with precisely one line
@@ -43,11 +45,13 @@ export class PieceTreeTextBufferFactory implements ITextBufferFactory {
 
 		if (this._normalizeEOL &&
 			((eol === '\r\n' && (this._cr > 0 || this._lf > 0))
-				|| (eol === '\n' && (this._cr > 0 || this._crlf > 0)))
+				|| (eol === '\n' && (this._cr > 0 || this._crlf > 0))
+				|| this._ps > 0
+				|| this._ls > 0)
 		) {
 			// Normalize pieces
 			for (let i = 0, len = chunks.length; i < len; i++) {
-				let str = chunks[i].buffer.replace(/\r\n|\r|\n/g, eol);
+				let str = chunks[i].buffer.replace(/\r\n|\r|\n|\u2028|\u2029/g, eol);
 				let newLineStart = createLineStartsFast(str);
 				chunks[i] = new StringBuffer(str, newLineStart);
 			}
@@ -57,7 +61,7 @@ export class PieceTreeTextBufferFactory implements ITextBufferFactory {
 	}
 
 	public getFirstLineText(lengthLimit: number): string {
-		return this._chunks[0].buffer.substr(0, 100).split(/\r\n|\r|\n/)[0];
+		return this._chunks[0].buffer.substr(0, 100).split(/\r\n|\r|\n|\u2028|\u2029/)[0];
 	}
 }
 
@@ -71,6 +75,8 @@ export class PieceTreeTextBufferBuilder implements ITextBufferBuilder {
 
 	private cr: number;
 	private lf: number;
+	private ls: number;
+	private ps: number;
 	private crlf: number;
 	private containsRTL: boolean;
 	private isBasicASCII: boolean;
@@ -85,6 +91,8 @@ export class PieceTreeTextBufferBuilder implements ITextBufferBuilder {
 
 		this.cr = 0;
 		this.lf = 0;
+		this.ls = 0;
+		this.ps = 0;
 		this.crlf = 0;
 		this.containsRTL = false;
 		this.isBasicASCII = true;
@@ -135,6 +143,8 @@ export class PieceTreeTextBufferBuilder implements ITextBufferBuilder {
 		this.cr += lineStarts.cr;
 		this.lf += lineStarts.lf;
 		this.crlf += lineStarts.crlf;
+		this.ls += lineStarts.ls;
+		this.ps += lineStarts.ps;
 
 		if (this.isBasicASCII) {
 			this.isBasicASCII = lineStarts.isBasicASCII;
@@ -153,6 +163,8 @@ export class PieceTreeTextBufferBuilder implements ITextBufferBuilder {
 			this.cr,
 			this.lf,
 			this.crlf,
+			this.ls,
+			this.ps,
 			this.containsRTL,
 			this.isBasicASCII,
 			normalizeEOL

@@ -31,6 +31,8 @@ export class LineStarts {
 		public readonly cr: number,
 		public readonly lf: number,
 		public readonly crlf: number,
+		public readonly ls: number,
+		public readonly ps: number,
 		public readonly isBasicASCII: boolean
 	) { }
 }
@@ -50,7 +52,7 @@ export function createLineStartsFast(str: string, readonly: boolean = true): Uin
 				// \r... case
 				r[rLength++] = i + 1;
 			}
-		} else if (chr === CharCode.LineFeed) {
+		} else if (chr === CharCode.LineFeed || chr === CharCode.LINE_SEPARATOR_2028 || chr === CharCode.PARAGRAPH_SEPARATOR_2029) {
 			r[rLength++] = i + 1;
 		}
 	}
@@ -65,7 +67,7 @@ export function createLineStarts(r: number[], str: string): LineStarts {
 	r.length = 0;
 	r[0] = 0;
 	let rLength = 1;
-	let cr = 0, lf = 0, crlf = 0;
+	let cr = 0, lf = 0, ls = 0, ps = 0, crlf = 0;
 	let isBasicASCII = true;
 	for (let i = 0, len = str.length; i < len; i++) {
 		const chr = str.charCodeAt(i);
@@ -84,6 +86,12 @@ export function createLineStarts(r: number[], str: string): LineStarts {
 		} else if (chr === CharCode.LineFeed) {
 			lf++;
 			r[rLength++] = i + 1;
+		} else if (chr === CharCode.LINE_SEPARATOR_2028) {
+			ls++;
+			r[rLength++] = i + 1;
+		} else if (chr === CharCode.PARAGRAPH_SEPARATOR_2029) {
+			ps++;
+			r[rLength++] = i + 1;
 		} else {
 			if (isBasicASCII) {
 				if (chr !== CharCode.Tab && (chr < 32 || chr > 126)) {
@@ -92,7 +100,7 @@ export function createLineStarts(r: number[], str: string): LineStarts {
 			}
 		}
 	}
-	const result = new LineStarts(createUintArray(r), cr, lf, crlf, isBasicASCII);
+	const result = new LineStarts(createUintArray(r), cr, lf, crlf, ls, ps, isBasicASCII);
 	r.length = 0;
 
 	return result;

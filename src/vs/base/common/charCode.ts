@@ -343,6 +343,11 @@ export const enum CharCode {
 	 * http://www.fileformat.info/info/unicode/char/2028/index.htm
 	 */
 	LINE_SEPARATOR_2028 = 8232,
+	/**
+	 * Unicode Character 'LINE SEPARATOR' (U+2028)
+	 * http://www.fileformat.info/info/unicode/char/2029/index.htm
+	 */
+	PARAGRAPH_SEPARATOR_2029 = 8233,
 
 	// http://www.fileformat.info/info/unicode/category/Sk/list.htm
 	U_CIRCUMFLEX = 0x005E,									// U+005E	CIRCUMFLEX
