@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import 'vs/css!./viewLines';
+import * as dom from 'vs/base/browser/dom';
 import { FastDomNode } from 'vs/base/browser/fastDomNode';
 import { RunOnceScheduler } from 'vs/base/common/async';
 import { Configuration } from 'vs/editor/browser/config/configuration';
@@ -18,6 +19,8 @@ import { ViewContext } from 'vs/editor/common/view/viewContext';
 import * as viewEvents from 'vs/editor/common/view/viewEvents';
 import { ViewportData } from 'vs/editor/common/viewLayout/viewLinesViewportData';
 import { Viewport } from 'vs/editor/common/viewModel/viewModel';
+import { ViewController } from 'vs/editor/browser/view/viewController';
+import { IKeyboardEvent } from 'vs/base/browser/keyboardEvent';
 
 class LastRenderedData {
 
@@ -82,8 +85,9 @@ export class ViewLines extends ViewPart implements IVisibleLinesHost<ViewLine>, 
 	private readonly _lastRenderedData: LastRenderedData;
 
 	private _hasFocus: boolean;
+	private _viewController: ViewController;
 
-	constructor(context: ViewContext, linesContent: FastDomNode<HTMLElement>) {
+	constructor(context: ViewContext, linesContent: FastDomNode<HTMLElement>, viewController: ViewController) {
 		super(context);
 		this._linesContent = linesContent;
 		this._textRangeRestingSpot = document.createElement('div');
@@ -91,6 +95,7 @@ export class ViewLines extends ViewPart implements IVisibleLinesHost<ViewLine>, 
 		this.domNode = this._visibleLines.domNode;
 		this.domNode.domNode.contentEditable = 'true';
 		this._hasFocus = false;
+		this._viewController = viewController;
 
 		const conf = this._context.configuration;
 
@@ -114,6 +119,26 @@ export class ViewLines extends ViewPart implements IVisibleLinesHost<ViewLine>, 
 		this._lastRenderedData = new LastRenderedData();
 
 		this._horizontalRevealRequest = null;
+
+		this._register(dom.addStandardDisposableListener(this.domNode.domNode, 'keyup', (e: IKeyboardEvent) => {
+			this._viewController.emitKeyUp(e);
+		}));
+
+		this._register(dom.addStandardDisposableListener(this.domNode.domNode, 'keydown', (e: IKeyboardEvent) => {
+			this._viewController.emitKeyDown(e);
+		}));
+
+		this._register(dom.addStandardDisposableListener(this.domNode.domNode, 'paste', (e: IKeyboardEvent) => {
+			this._viewController.emitKeyDown(e);
+		}));
+
+		this._register(dom.addStandardDisposableListener(this.domNode.domNode, 'cut', (e: IKeyboardEvent) => {
+			this._viewController.emitKeyDown(e);
+		}));
+
+		this._register(dom.addStandardDisposableListener(this.domNode.domNode, 'input', (e: IKeyboardEvent) => {
+			// this._viewController.type('keyboard', e.text);
+		}));
 	}
 
 	public dispose(): void {
@@ -189,6 +214,25 @@ export class ViewLines extends ViewPart implements IVisibleLinesHost<ViewLine>, 
 		return false;
 	}
 	public onCursorStateChanged(e: viewEvents.ViewCursorStateChangedEvent): boolean {
+		console.log(e.selections);
+		const selections = e.selections.slice(0);
+		const primary = selections[0];
+
+		this._hasFocus = true;
+		this.domNode.domNode.focus();
+		const startLineNumber = this._visibleLines.getStartLineNumber();
+		const lineOffset = primary.startLineNumber - startLineNumber;
+		const range = window.document.createRange();
+		range.setStart(this.domNode.domNode.children[lineOffset], 0);
+		range.setEnd(this.domNode.domNode.children[lineOffset], 0);
+		const selection = window.getSelection() as any;
+		selection.removeAllRanges();
+		selection.addRange(range);
+
+		for (let i = 0; i < primary.startColumn - 1; i++) {
+			selection.modify('move', 'forward', 'character');
+		}
+
 		const rendStartLineNumber = this._visibleLines.getStartLineNumber();
 		const rendEndLineNumber = this._visibleLines.getEndLineNumber();
 		let r = false;
@@ -703,6 +747,7 @@ export class ViewLines extends ViewPart implements IVisibleLinesHost<ViewLine>, 
 	}
 
 	focus(line: number, column: number) {
+		console.log(line, column);
 		this._hasFocus = true;
 		this.domNode.domNode.focus();
 		const startLineNumber = this._visibleLines.getStartLineNumber();
@@ -713,6 +758,10 @@ export class ViewLines extends ViewPart implements IVisibleLinesHost<ViewLine>, 
 		const selection = window.getSelection() as any;
 		selection.removeAllRanges();
 		selection.addRange(range);
+
+		for (let i = 0; i < column; i++) {
+			selection.modify('move', 'forward', 'character');
+		}
 	}
 
 	isFocused() {

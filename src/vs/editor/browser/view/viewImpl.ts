@@ -128,7 +128,7 @@ export class View extends ViewEventHandler {
 		this._textAreaHandler = new TextAreaHandler(this._context, viewController, this.createTextAreaHandlerHelper());
 		this.viewParts.push(this._textAreaHandler);
 
-		this.createViewParts();
+		this.createViewParts(viewController);
 		this._setLayout();
 
 		// Pointer handler
@@ -143,7 +143,7 @@ export class View extends ViewEventHandler {
 		}));
 	}
 
-	private createViewParts(): void {
+	private createViewParts(viewController: ViewController): void {
 		// These two dom nodes must be constructed up front, since references are needed in the layout provider (scrolling & co.)
 		this.linesContent = createFastDomNode(document.createElement('div'));
 		this.linesContent.setClassName('lines-content' + ' monaco-editor-background');
@@ -160,7 +160,7 @@ export class View extends ViewEventHandler {
 		this.viewParts.push(this._scrollbar);
 
 		// View Lines
-		this.viewLines = new ViewLines(this._context, this.linesContent);
+		this.viewLines = new ViewLines(this._context, this.linesContent, viewController);
 
 		// View Zones
 		this.viewZones = new ViewZones(this._context);
