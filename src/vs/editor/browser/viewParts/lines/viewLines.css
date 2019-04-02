@@ -27,6 +27,7 @@
 
 .monaco-editor .view-lines {
 	cursor: text;
+	caret-color: white;
 	white-space: nowrap;
 }
 

@@ -263,7 +263,6 @@ export class ExtHostComments implements ExtHostCommentsShape {
 			return handlerData.provider.startDraft!(document, CancellationToken.None);
 		});
 	}
-
 	$deleteDraft(handle: number, uri: UriComponents): Promise<void> {
 		const document = this._documents.getDocument(URI.revive(uri));
 		const handlerData = this.getDocumentProvider(handle);

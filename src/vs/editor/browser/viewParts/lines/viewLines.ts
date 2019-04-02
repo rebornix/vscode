@@ -81,12 +81,16 @@ export class ViewLines extends ViewPart implements IVisibleLinesHost<ViewLine>, 
 	private _horizontalRevealRequest: HorizontalRevealRequest | null;
 	private readonly _lastRenderedData: LastRenderedData;
 
+	private _hasFocus: boolean;
+
 	constructor(context: ViewContext, linesContent: FastDomNode<HTMLElement>) {
 		super(context);
 		this._linesContent = linesContent;
 		this._textRangeRestingSpot = document.createElement('div');
 		this._visibleLines = new VisibleLinesCollection(this);
 		this.domNode = this._visibleLines.domNode;
+		this.domNode.domNode.contentEditable = 'true';
+		this._hasFocus = false;
 
 		const conf = this._context.configuration;
 
@@ -696,5 +700,22 @@ export class ViewLines extends ViewPart implements IVisibleLinesHost<ViewLine>, 
 		}
 
 		return viewportStart;
+	}
+
+	focus(line: number, column: number) {
+		this._hasFocus = true;
+		this.domNode.domNode.focus();
+		const startLineNumber = this._visibleLines.getStartLineNumber();
+		const lineOffset = line - startLineNumber;
+		const range = window.document.createRange();
+		range.setStart(this.domNode.domNode.children[lineOffset], 0);
+		range.setEnd(this.domNode.domNode.children[lineOffset], 0);
+		const selection = window.getSelection() as any;
+		selection.removeAllRanges();
+		selection.addRange(range);
+	}
+
+	isFocused() {
+		return this._hasFocus;
 	}
 }

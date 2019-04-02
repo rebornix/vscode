@@ -528,11 +528,14 @@ export class View extends ViewEventHandler {
 	}
 
 	public focus(): void {
-		this._textAreaHandler.focusTextArea();
+		const selection = this._cursor.getSelection();
+		this.viewLines.focus(selection.startLineNumber, selection.startColumn);
+		// this._textAreaHandler.focusTextArea();
 	}
 
 	public isFocused(): boolean {
-		return this._textAreaHandler.isFocused();
+		return this.viewLines.isFocused();
+		// return this._textAreaHandler.isFocused();
 	}
 
 	public addContentWidget(widgetData: IContentWidgetData): void {

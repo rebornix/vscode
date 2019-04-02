@@ -262,6 +262,7 @@ export class CursorMoveCommands {
 	public static move(context: CursorContext, cursors: CursorState[], args: CursorMove.ParsedArguments): PartialCursorState[] | null {
 		const inSelectionMode = args.select;
 		const value = args.value;
+		const selection = window.getSelection() as any;
 
 		switch (args.direction) {
 			case CursorMove.Direction.Left: {
@@ -270,6 +271,9 @@ export class CursorMoveCommands {
 					return this._moveHalfLineLeft(context, cursors, inSelectionMode);
 				} else {
 					// Move left by `moveParams.value` columns
+					for (let i = 0; i < value; i++) {
+						selection.modify('move', 'backward', 'character');
+					}
 					return this._moveLeft(context, cursors, inSelectionMode, value);
 				}
 			}
@@ -279,10 +283,16 @@ export class CursorMoveCommands {
 					return this._moveHalfLineRight(context, cursors, inSelectionMode);
 				} else {
 					// Move right by `moveParams.value` columns
+					for (let i = 0; i < value; i++) {
+						selection.modify('move', 'forward', 'character');
+					}
 					return this._moveRight(context, cursors, inSelectionMode, value);
 				}
 			}
 			case CursorMove.Direction.Up: {
+				for (let i = 0; i < value; i++) {
+					selection.modify('move', 'backward', 'line');
+				}
 				if (args.unit === CursorMove.Unit.WrappedLine) {
 					// Move up by view lines
 					return this._moveUpByViewLines(context, cursors, inSelectionMode, value);
@@ -292,6 +302,9 @@ export class CursorMoveCommands {
 				}
 			}
 			case CursorMove.Direction.Down: {
+				for (let i = 0; i < value; i++) {
+					selection.modify('move', 'forward', 'line');
+				}
 				if (args.unit === CursorMove.Unit.WrappedLine) {
 					// Move down by view lines
 					return this._moveDownByViewLines(context, cursors, inSelectionMode, value);
