@@ -145,6 +145,7 @@ export class View extends ViewEventHandler {
 
 		// Pointer handler
 		this.pointerHandler = this._register(new PointerHandler(this._context, viewController, this.createPointerHandlerHelper()));
+		this._editContextHandler.registerParent(this.createRectHandler());
 
 		this._register(model.addEventListener((events: viewEvents.ViewEvent[]) => {
 			this.eventDispatcher.emitMany(events);
@@ -249,6 +250,10 @@ export class View extends ViewEventHandler {
 
 	private _flushAccumulatedAndRenderNow(): void {
 		this._renderNow();
+	}
+
+	private createRectHandler() {
+		return this.domNode.domNode;
 	}
 
 	private createPointerHandlerHelper(): IPointerHandlerHelper {

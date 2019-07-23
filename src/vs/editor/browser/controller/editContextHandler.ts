@@ -46,6 +46,7 @@ export class EditContextHandler extends ViewPart {
 	public readonly textAreaCover: FastDomNode<HTMLElement>;
 	private readonly _textAreaInput: TextAreaInput;
 	private readonly _editContext: any;
+	private _containerDOM: HTMLElement;
 
 	constructor(context: ViewContext, viewController: ViewController, editContext: any) {
 		super(context);
@@ -73,6 +74,10 @@ export class EditContextHandler extends ViewPart {
 		const originalModelText = this._context.model.getValueInRange(new Range(1, 1, lineCnt, maxColumnOfLastLine), EndOfLinePreference.TextDefined);
 		this._editContext.textChanged(/*insertAt*/0, /*charsToRemove*/0, originalModelText);
 		this._editContext.selectionChanged(new EditContextTextRange(originalModelText.length, originalModelText.length));
+	}
+
+	registerParent(domNode: HTMLElement) {
+		this._containerDOM = domNode;
 	}
 
 	public onConfigurationChanged(e: viewEvents.ViewConfigurationChangedEvent): boolean {
@@ -178,9 +183,16 @@ export class EditContextHandler extends ViewPart {
 		const endOffset = this._context.model.getOffsetAt(this._selections[0].getEndPosition());
 		this._editContext.selectionChanged(new EditContextTextRange(startOffset, endOffset));
 
+		const viewRect = this._containerDOM.getBoundingClientRect() as DOMRect;
+		const editControlRect = new DOMRect(
+			/*x*/window.screenLeft + viewRect.x,
+			/*y*/window.screenTop + viewRect.y,
+			/*width*/viewRect.width,
+			/*height*/viewRect.height);
+
 		const caretRect = new DOMRect(
-			/*x*/window.screenLeft + left,
-			/*y*/window.screenTop + top,
+			/*x*/window.screenLeft + editControlRect.x + left,
+			/*y*/window.screenTop + editControlRect.y + top,
 			/*width*/1,
 			/*height*/15
 		);
