@@ -580,6 +580,10 @@ export class ViewModel extends viewEvents.ViewEventEmitter implements IViewModel
 		return this.model.getValueInRange(modelRange, eol);
 	}
 
+	public getOffsetAt(position: Position): number {
+		return this.model.getOffsetAt(position);
+	}
+
 	public getModelLineMaxColumn(modelLineNumber: number): number {
 		return this.model.getLineMaxColumn(modelLineNumber);
 	}

@@ -48,6 +48,11 @@ import { ViewportData } from 'vs/editor/common/viewLayout/viewLinesViewportData'
 import { ViewEventHandler } from 'vs/editor/common/viewModel/viewEventHandler';
 import { IViewModel } from 'vs/editor/common/viewModel/viewModel';
 import { IThemeService, getThemeTypeSelector } from 'vs/platform/theme/common/themeService';
+import { EditContextHandler } from 'vs/editor/browser/controller/editContextHandler';
+
+declare var EditContext: any;
+declare var EditContextTextRange: any;
+
 
 export interface IContentWidgetData {
 	widget: editorBrowser.IContentWidget;
@@ -80,6 +85,8 @@ export class View extends ViewEventHandler {
 	private viewParts: ViewPart[];
 
 	private readonly _textAreaHandler: TextAreaHandler;
+	private readonly _editContext: any;
+	private readonly _editContextHandler: EditContextHandler;
 	private readonly pointerHandler: PointerHandler;
 
 	private readonly outgoingEvents: ViewOutgoingEvents;
@@ -123,6 +130,11 @@ export class View extends ViewEventHandler {
 		}));
 
 		this.viewParts = [];
+
+		// EditContext
+		this._editContext = new EditContext();
+		this._editContextHandler = new EditContextHandler(this._context, viewController, this._editContext);
+		this.viewParts.push(this._editContextHandler);
 
 		// Keyboard handler
 		this._textAreaHandler = new TextAreaHandler(this._context, viewController, this.createTextAreaHandlerHelper());
@@ -526,11 +538,13 @@ export class View extends ViewEventHandler {
 	}
 
 	public focus(): void {
-		this._textAreaHandler.focusTextArea();
+		this._editContextHandler.focusEditContext();
+		// this._textAreaHandler.focusTextArea();
 	}
 
 	public isFocused(): boolean {
-		return this._textAreaHandler.isFocused();
+		return false;
+		// return this._textAreaHandler.isFocused();
 	}
 
 	public addContentWidget(widgetData: IContentWidgetData): void {

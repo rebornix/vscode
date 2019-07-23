@@ -145,6 +145,7 @@ export interface IViewModel {
 	getValueInRange(range: Range, eol: EndOfLinePreference): string;
 
 	getModelLineMaxColumn(modelLineNumber: number): number;
+	getOffsetAt(position: Position): number;
 	validateModelPosition(modelPosition: IPosition): Position;
 	validateModelRange(range: IRange): Range;
 
