@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+import * as dom from 'vs/base/browser/dom';
 import { ViewPart } from 'vs/editor/browser/view/viewPart';
 import { ViewController } from 'vs/editor/browser/view/viewController';
 import { ITextAreaHandlerHelper } from 'vs/editor/browser/controller/textAreaHandler';
@@ -17,6 +18,9 @@ import { Position } from 'vs/editor/common/core/position';
 import { Selection } from 'vs/editor/common/core/selection';
 import { EndOfLinePreference } from 'vs/editor/common/model';
 import * as viewEvents from 'vs/editor/common/view/viewEvents';
+import { Emitter, Event } from 'vs/base/common/event';
+import { IKeyboardEvent } from 'vs/base/browser/keyboardEvent';
+import { KeyCode } from 'vs/base/common/keyCodes';
 
 declare var EditContext: any;
 declare var EditContextTextRange: any;
@@ -47,6 +51,20 @@ export class EditContextHandler extends ViewPart {
 	private readonly _textAreaInput: TextAreaInput;
 	private readonly _editContext: any;
 	private _containerDOM: HTMLElement;
+	private _viewLineDomNode: HTMLElement;
+	private _hasFocus: boolean;
+
+	private _onFocus = this._register(new Emitter<void>());
+	public readonly onFocus: Event<void> = this._onFocus.event;
+
+	private _onBlur = this._register(new Emitter<void>());
+	public readonly onBlur: Event<void> = this._onBlur.event;
+
+	private _onKeyDown = this._register(new Emitter<IKeyboardEvent>());
+	public readonly onKeyDown: Event<IKeyboardEvent> = this._onKeyDown.event;
+
+	private _onKeyUp = this._register(new Emitter<IKeyboardEvent>());
+	public readonly onKeyUp: Event<IKeyboardEvent> = this._onKeyUp.event;
 
 	constructor(context: ViewContext, viewController: ViewController, editContext: any) {
 		super(context);
@@ -54,6 +72,7 @@ export class EditContextHandler extends ViewPart {
 		this._viewController = viewController;
 		this._editContext = editContext;
 
+		this._hasFocus = false;
 		const conf = this._context.configuration.editor;
 
 		this._accessibilitySupport = conf.accessibilitySupport;
@@ -74,10 +93,47 @@ export class EditContextHandler extends ViewPart {
 		const originalModelText = this._context.model.getValueInRange(new Range(1, 1, lineCnt, maxColumnOfLastLine), EndOfLinePreference.TextDefined);
 		this._editContext.textChanged(/*insertAt*/0, /*charsToRemove*/0, originalModelText);
 		this._editContext.selectionChanged(new EditContextTextRange(originalModelText.length, originalModelText.length));
+
+		this._editContext.addEventListener('keydown', () => {
+			console.log('keydown');
+		});
+
+		this._editContext.addEventListener('textupdate', ((e: any) => {
+			const replaceCharCnt = e.updateRange.end - e.updateRange.start;
+
+			const text = e.updateText;
+			if (!this._selections[0].isEmpty()) {
+				this._viewController.type('keyboard', text);
+			} else {
+				this._viewController.replacePreviousChar('keyboard', text, replaceCharCnt);
+			}
+		}).bind(this));
 	}
 
-	registerParent(domNode: HTMLElement) {
-		this._containerDOM = domNode;
+	registerParent(info: { viewDomNode: HTMLElement, viewLineDomNode: HTMLElement }) {
+		this._containerDOM = info.viewDomNode;
+		this._viewLineDomNode = info.viewLineDomNode;
+
+		console.log('register listener');
+		this._register(dom.addStandardDisposableListener(this._viewLineDomNode, 'keydown', (e: IKeyboardEvent) => {
+			console.log('keydown');
+			// if (this._isDoingComposition &&
+			// 	(e.keyCode === KeyCode.KEY_IN_COMPOSITION || e.keyCode === KeyCode.Backspace)) {
+			// 	// Stop propagation for keyDown events if the IME is processing key input
+			// 	e.stopPropagation();
+			// }
+
+			if (e.equals(KeyCode.Escape)) {
+				// Prevent default always for `Esc`, otherwise it will generate a keypress
+				// See https://msdn.microsoft.com/en-us/library/ie/ms536939(v=vs.85).aspx
+				e.preventDefault();
+			}
+			this._viewController.emitKeyDown(e);
+		}));
+
+		this._register(dom.addStandardDisposableListener(this._viewLineDomNode, 'keyup', (e: IKeyboardEvent) => {
+			this._viewController.emitKeyUp(e);
+		}));
 	}
 
 	public onConfigurationChanged(e: viewEvents.ViewConfigurationChangedEvent): boolean {
@@ -136,8 +192,28 @@ export class EditContextHandler extends ViewPart {
 		return true;
 	}
 
+	public isFocused() {
+		return true;
+	}
+
 	public focusEditContext(): void {
+		this._setHasFocus(true);
+		this._viewLineDomNode.focus();
 		this._editContext.focus();
+	}
+
+	private _setHasFocus(newHasFocus: boolean): void {
+		if (this._hasFocus === newHasFocus) {
+			// no change
+			return;
+		}
+		this._hasFocus = newHasFocus;
+
+		if (this._hasFocus) {
+			this._onFocus.fire();
+		} else {
+			this._onBlur.fire();
+		}
 	}
 
 	private _primaryCursorVisibleRange: HorizontalRange | null = null;
@@ -190,15 +266,16 @@ export class EditContextHandler extends ViewPart {
 			/*width*/viewRect.width,
 			/*height*/viewRect.height);
 
+		// console.log(editControlRect);
 		const caretRect = new DOMRect(
-			/*x*/window.screenLeft + editControlRect.x + left,
-			/*y*/window.screenTop + editControlRect.y + top,
-			/*width*/1,
-			/*height*/15
+			/*x*/editControlRect.x + viewRect.x + left,
+			/*y*/editControlRect.y + viewRect.y + top,
+			/*width*/10,
+			/*height*/this._fontInfo.lineHeight
 		);
 
-		console.log(caretRect);
-		this._editContext.layoutChanged(caretRect, caretRect);
+		// console.log(caretRect);
+		this._editContext.layoutChanged(editControlRect, caretRect);
 
 	}
 }

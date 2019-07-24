@@ -99,6 +99,8 @@ export class ViewLines extends ViewPart implements IVisibleLinesHost<ViewLine>, 
 
 		PartFingerprints.write(this.domNode, PartFingerprint.ViewLines);
 		this.domNode.setClassName('view-lines');
+		this.domNode.setAttribute('tabIndex', '-1');
+		this.domNode.domNode.tabIndex = -1;
 		Configuration.applyFontInfo(this.domNode, conf.editor.fontInfo);
 
 		// --- width & height

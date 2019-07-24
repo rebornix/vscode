@@ -253,7 +253,10 @@ export class View extends ViewEventHandler {
 	}
 
 	private createRectHandler() {
-		return this.domNode.domNode;
+		return {
+			viewDomNode: this.domNode.domNode,
+			viewLineDomNode: this.viewLines.getDomNode().domNode
+		};
 	}
 
 	private createPointerHandlerHelper(): IPointerHandlerHelper {
@@ -543,13 +546,12 @@ export class View extends ViewEventHandler {
 	}
 
 	public focus(): void {
+		this.viewLines.getDomNode().domNode.focus();
 		this._editContextHandler.focusEditContext();
-		// this._textAreaHandler.focusTextArea();
 	}
 
 	public isFocused(): boolean {
-		return false;
-		// return this._textAreaHandler.isFocused();
+		return this._editContextHandler.isFocused();
 	}
 
 	public addContentWidget(widgetData: IContentWidgetData): void {

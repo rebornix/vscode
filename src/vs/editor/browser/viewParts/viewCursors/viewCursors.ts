@@ -65,7 +65,7 @@ export class ViewCursors extends ViewPart {
 
 		this._blinkingEnabled = false;
 
-		this._editorHasFocus = false;
+		this._editorHasFocus = true;
 		this._updateBlinking();
 	}
 
@@ -152,7 +152,7 @@ export class ViewCursors extends ViewPart {
 		return true;
 	}
 	public onFocusChanged(e: viewEvents.ViewFocusChangedEvent): boolean {
-		this._editorHasFocus = e.isFocused;
+		this._editorHasFocus = true; // e.isFocused;
 		this._updateBlinking();
 		return false;
 	}
